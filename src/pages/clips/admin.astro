@@ -1,0 +1,520 @@
+---
+export const prerender = false;
+
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+interface Clip {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  tags: string[];
+  date: string;
+}
+
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
+
+const { env } = Astro.locals.runtime;
+const clipsJson = await env.CLIPS_KV.get('clips');
+const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
+---
+
+<!doctype html>
+<html lang="pt">
+  <head>
+    <BaseHead
+      title={`Admin Clipping | ${SITE_TITLE}`}
+      description="Gerir clips"
+    />
+  </head>
+  <body>
+    <Header />
+    <main>
+      <h1>Admin — Clipping</h1>
+
+      <div id="lock-screen">
+        <p>Introduz a palavra-passe de administrador:</p>
+        <form id="password-form">
+          <div class="pw-row">
+            <input
+              type="password"
+              id="password-input"
+              placeholder="Palavra-passe"
+              autocomplete="current-password"
+            />
+            <button type="submit">Entrar</button>
+          </div>
+          <p id="auth-error" class="msg-error" style="display:none">
+            Palavra-passe incorreta.
+          </p>
+        </form>
+      </div>
+
+      <div id="admin-panel" style="display:none">
+        <section class="add-section">
+          <h2>Adicionar Clip</h2>
+          <form id="add-form">
+            <div class="field">
+              <label for="url">URL *</label>
+              <input
+                type="url"
+                id="url"
+                name="url"
+                placeholder="https://exemplo.com/artigo"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="title">Título *</label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                placeholder="Título do artigo"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="description">Descrição</label>
+              <textarea
+                id="description"
+                name="description"
+                rows="3"
+                placeholder="Breve descrição ou nota pessoal..."></textarea>
+            </div>
+            <div class="field">
+              <label for="tags">Tags <span class="hint">(separadas por vírgula)</span></label>
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                placeholder="tecnologia, IA, design"
+              />
+            </div>
+            <div class="form-actions">
+              <button type="submit" id="add-btn">Guardar Clip</button>
+              <a href="/clips" target="_blank" class="view-link">Ver clipping público ↗</a>
+            </div>
+            <p id="add-error" class="msg-error" style="display:none"></p>
+            <p id="add-success" class="msg-success" style="display:none">
+              Clip guardado com sucesso!
+            </p>
+          </form>
+        </section>
+
+        <section class="clips-section">
+          <h2>Clips guardados <span class="count">({clips.length})</span></h2>
+          {
+            clips.length === 0 ? (
+              <p class="empty">Sem clips ainda. Adiciona o primeiro acima.</p>
+            ) : (
+              <ul class="clips-list" id="clips-list">
+                {clips.map((clip) => (
+                  <li class="clip-item" data-id={clip.id}>
+                    <div class="clip-info">
+                      <a
+                        href={clip.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="clip-title"
+                      >
+                        {clip.title}
+                      </a>
+                      <span class="clip-url">{getHostname(clip.url)}</span>
+                      {clip.tags.length > 0 && (
+                        <div class="clip-tags">
+                          {clip.tags.map((tag) => (
+                            <span class="tag">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      {clip.description && (
+                        <p class="clip-desc">{clip.description}</p>
+                      )}
+                    </div>
+                    <button class="delete-btn" data-id={clip.id}>
+                      Apagar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </section>
+      </div>
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<script>
+  let adminPassword = '';
+
+  const lockScreen = document.getElementById('lock-screen') as HTMLElement;
+  const adminPanel = document.getElementById('admin-panel') as HTMLElement;
+  const passwordForm = document.getElementById('password-form') as HTMLFormElement;
+  const passwordInput = document.getElementById('password-input') as HTMLInputElement;
+  const authError = document.getElementById('auth-error') as HTMLElement;
+
+  const saved = sessionStorage.getItem('clips-admin-pw');
+  if (saved) {
+    adminPassword = saved;
+    unlock();
+  }
+
+  passwordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pwd = passwordInput.value;
+    authError.style.display = 'none';
+
+    const res = await fetch('/api/clips/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd }),
+    });
+
+    if (!res.ok) {
+      authError.style.display = 'block';
+      return;
+    }
+
+    adminPassword = pwd;
+    sessionStorage.setItem('clips-admin-pw', pwd);
+    unlock();
+  });
+
+  function unlock() {
+    lockScreen.style.display = 'none';
+    adminPanel.style.display = 'block';
+  }
+
+  // Add clip form
+  const addForm = document.getElementById('add-form') as HTMLFormElement;
+  const addError = document.getElementById('add-error') as HTMLElement;
+  const addSuccess = document.getElementById('add-success') as HTMLElement;
+  const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    addError.style.display = 'none';
+    addSuccess.style.display = 'none';
+    addBtn.disabled = true;
+    addBtn.textContent = 'A guardar...';
+
+    const data = new FormData(addForm);
+    const url = (data.get('url') as string).trim();
+    const title = (data.get('title') as string).trim();
+    const description = (data.get('description') as string).trim();
+    const tagsStr = data.get('tags') as string;
+    const tags = tagsStr
+      ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    try {
+      const res = await fetch('/api/clips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Password': adminPassword,
+        },
+        body: JSON.stringify({ url, title, description, tags }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        addError.textContent = err.error || 'Erro ao guardar clip.';
+        addError.style.display = 'block';
+      } else {
+        const newClip = await res.json() as {
+          id: string;
+          url: string;
+          title: string;
+          description: string;
+          tags: string[];
+        };
+        addSuccess.style.display = 'block';
+        addForm.reset();
+        prependClip(newClip);
+        updateCount(1);
+      }
+    } catch {
+      addError.textContent = 'Erro de rede. Tenta novamente.';
+      addError.style.display = 'block';
+    } finally {
+      addBtn.disabled = false;
+      addBtn.textContent = 'Guardar Clip';
+    }
+  });
+
+  function getHostname(url: string): string {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return url;
+    }
+  }
+
+  function prependClip(clip: {
+    id: string;
+    url: string;
+    title: string;
+    description: string;
+    tags: string[];
+  }) {
+    const list = document.getElementById('clips-list') as HTMLUListElement | null;
+    if (!list) return;
+
+    const li = document.createElement('li');
+    li.className = 'clip-item';
+    li.dataset.id = clip.id;
+    li.innerHTML = `
+      <div class="clip-info">
+        <a href="${clip.url}" target="_blank" rel="noopener noreferrer" class="clip-title">${clip.title}</a>
+        <span class="clip-url">${getHostname(clip.url)}</span>
+        ${clip.tags.length > 0 ? `<div class="clip-tags">${clip.tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+        ${clip.description ? `<p class="clip-desc">${clip.description}</p>` : ''}
+      </div>
+      <button class="delete-btn" data-id="${clip.id}">Apagar</button>
+    `;
+    attachDeleteBtn(li.querySelector('.delete-btn') as HTMLButtonElement);
+    list.prepend(li);
+  }
+
+  function updateCount(delta: number) {
+    const count = document.querySelector('.count');
+    if (!count) return;
+    const match = count.textContent?.match(/\d+/);
+    if (match) {
+      count.textContent = `(${parseInt(match[0]) + delta})`;
+    }
+  }
+
+  function attachDeleteBtn(btn: HTMLButtonElement) {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('Tens a certeza que queres apagar este clip?')) return;
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch(`/api/clips/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Password': adminPassword },
+        });
+
+        if (res.ok) {
+          btn.closest('.clip-item')?.remove();
+          updateCount(-1);
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Apagar';
+          alert('Erro ao apagar clip.');
+        }
+      } catch {
+        btn.disabled = false;
+        btn.textContent = 'Apagar';
+        alert('Erro de rede.');
+      }
+    });
+  }
+
+  document.querySelectorAll('.delete-btn').forEach((btn) => {
+    attachDeleteBtn(btn as HTMLButtonElement);
+  });
+</script>
+
+<style>
+  h1 {
+    margin-bottom: 1.25em;
+  }
+  h2 {
+    font-size: 1.4em;
+    margin: 0 0 1em 0;
+  }
+  .count {
+    color: rgb(var(--gray));
+    font-weight: 400;
+    font-size: 0.85em;
+  }
+
+  /* Lock screen */
+  #lock-screen {
+    max-width: 420px;
+  }
+  .pw-row {
+    display: flex;
+    gap: 0.75em;
+    align-items: center;
+  }
+  #password-input {
+    flex: 1;
+  }
+
+  /* Add form */
+  .add-section {
+    background: white;
+    border: 1px solid rgb(var(--gray-light));
+    border-radius: 8px;
+    padding: 1.5em;
+    margin-bottom: 2.5em;
+    box-shadow: var(--box-shadow);
+  }
+  .field {
+    margin-bottom: 1.1em;
+  }
+  label {
+    display: block;
+    font-size: 0.84em;
+    font-weight: 700;
+    margin-bottom: 0.3em;
+    color: rgb(var(--gray-dark));
+  }
+  .hint {
+    font-weight: 400;
+    color: rgb(var(--gray));
+  }
+  input[type='text'],
+  input[type='url'],
+  input[type='password'],
+  textarea {
+    width: 100%;
+    padding: 0.5em 0.75em;
+    border: 1px solid rgb(var(--gray-light));
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95em;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  input:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.5em;
+    flex-wrap: wrap;
+  }
+  button[type='submit'] {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.6em 1.5em;
+    border-radius: 4px;
+    font-size: 1em;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  button[type='submit']:hover {
+    background: var(--accent-dark);
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .view-link {
+    font-size: 0.88em;
+    color: rgb(var(--gray));
+  }
+  .msg-error {
+    color: #c00;
+    font-size: 0.88em;
+    margin-top: 0.6em;
+  }
+  .msg-success {
+    color: #080;
+    font-size: 0.88em;
+    margin-top: 0.6em;
+  }
+
+  /* Clips list */
+  .clips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+  }
+  .clip-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1em;
+    padding: 1em 1.25em;
+    border: 1px solid rgb(var(--gray-light));
+    border-radius: 8px;
+    background: white;
+  }
+  .clip-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .clip-title {
+    display: block;
+    font-weight: 700;
+    font-size: 0.95em;
+    color: rgb(var(--black));
+    text-decoration: none;
+    margin-bottom: 0.15em;
+  }
+  .clip-title:hover {
+    color: var(--accent);
+  }
+  .clip-url {
+    font-size: 0.76em;
+    color: rgb(var(--gray));
+  }
+  .clip-tags {
+    display: flex;
+    gap: 0.35em;
+    flex-wrap: wrap;
+    margin-top: 0.4em;
+  }
+  .tag {
+    font-size: 0.72em;
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    background: rgb(var(--gray-light));
+    color: rgb(var(--gray-dark));
+  }
+  .clip-desc {
+    font-size: 0.84em;
+    color: rgb(var(--gray-dark));
+    margin: 0.4em 0 0;
+    line-height: 1.4;
+  }
+  .delete-btn {
+    background: none;
+    border: 1px solid #c00;
+    color: #c00;
+    padding: 0.3em 0.75em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82em;
+    font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .delete-btn:hover {
+    background: #c00;
+    color: white;
+  }
+  .empty {
+    color: rgb(var(--gray));
+    font-style: italic;
+  }
+</style>

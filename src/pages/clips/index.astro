@@ -1,0 +1,247 @@
+---
+export const prerender = false;
+
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+interface Clip {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  tags: string[];
+  date: string;
+}
+
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
+
+const { env } = Astro.locals.runtime;
+const clipsJson = await env.CLIPS_KV.get('clips');
+const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
+
+const allTags = [...new Set(clips.flatMap((c) => c.tags))].sort();
+
+const searchParams = new URL(Astro.request.url).searchParams;
+const activeTag = searchParams.get('tag') || '';
+const filteredClips = activeTag
+  ? clips.filter((c) => c.tags.includes(activeTag))
+  : clips;
+---
+
+<!doctype html>
+<html lang="pt">
+  <head>
+    <BaseHead
+      title={`Clipping | ${SITE_TITLE}`}
+      description="Links e artigos guardados"
+    />
+  </head>
+  <body>
+    <Header />
+    <main>
+      <section>
+        <div class="page-header">
+          <h1>Clipping</h1>
+          <p class="subtitle">
+            {filteredClips.length}
+            {activeTag ? `clip${filteredClips.length !== 1 ? 's' : ''} com tag "${activeTag}"` : `artigo${clips.length !== 1 ? 's' : ''} guardado${clips.length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+
+        {
+          allTags.length > 0 && (
+            <div class="tags-filter">
+              <a href="/clips" class:list={['tag-btn', { active: !activeTag }]}>
+                Todos
+              </a>
+              {allTags.map((tag) => (
+                <a
+                  href={`/clips?tag=${encodeURIComponent(tag)}`}
+                  class:list={['tag-btn', { active: activeTag === tag }]}
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+          )
+        }
+
+        {
+          filteredClips.length === 0 ? (
+            <p class="empty">Nenhum clip encontrado.</p>
+          ) : (
+            <ul class="clips-list">
+              {filteredClips.map((clip) => (
+                <li class="clip-card">
+                  <div class="clip-meta">
+                    <time datetime={clip.date}>
+                      {new Date(clip.date).toLocaleDateString('pt-PT', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </time>
+                    {clip.tags.length > 0 && (
+                      <div class="clip-tags">
+                        {clip.tags.map((tag) => (
+                          <a
+                            href={`/clips?tag=${encodeURIComponent(tag)}`}
+                            class="tag"
+                          >
+                            {tag}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href={clip.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="clip-title"
+                  >
+                    {clip.title}
+                  </a>
+                  {clip.description && (
+                    <p class="clip-description">{clip.description}</p>
+                  )}
+                  <a
+                    href={clip.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="clip-url"
+                  >
+                    ↗ {getHostname(clip.url)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </section>
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .page-header {
+    margin-bottom: 1.5em;
+  }
+  h1 {
+    margin-bottom: 0.15em;
+  }
+  .subtitle {
+    color: rgb(var(--gray));
+    margin: 0;
+    font-size: 0.9em;
+  }
+  .tags-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin-bottom: 2em;
+  }
+  .tag-btn {
+    padding: 0.25em 0.85em;
+    border-radius: 999px;
+    font-size: 0.8em;
+    text-decoration: none;
+    background: rgb(var(--gray-light));
+    color: rgb(var(--gray-dark));
+    border: 2px solid transparent;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .tag-btn:hover,
+  .tag-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .clips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25em;
+  }
+  .clip-card {
+    border: 1px solid rgb(var(--gray-light));
+    border-radius: 8px;
+    padding: 1.25em 1.5em;
+    background: white;
+    box-shadow: var(--box-shadow);
+    transition: border-color 0.15s;
+  }
+  .clip-card:hover {
+    border-color: rgb(var(--gray));
+  }
+  .clip-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    margin-bottom: 0.5em;
+    flex-wrap: wrap;
+  }
+  time {
+    font-size: 0.78em;
+    color: rgb(var(--gray));
+  }
+  .clip-tags {
+    display: flex;
+    gap: 0.35em;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 0.72em;
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    background: rgba(var(--gray-light), 0.8);
+    color: rgb(var(--gray-dark));
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tag:hover {
+    background: var(--accent);
+    color: white;
+  }
+  .clip-title {
+    display: block;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: rgb(var(--black));
+    text-decoration: none;
+    margin-bottom: 0.35em;
+    line-height: 1.35;
+  }
+  .clip-title:hover {
+    color: var(--accent);
+  }
+  .clip-description {
+    font-size: 0.88em;
+    color: rgb(var(--gray-dark));
+    margin: 0 0 0.5em 0;
+    line-height: 1.5;
+  }
+  .clip-url {
+    font-size: 0.76em;
+    color: rgb(var(--gray));
+    text-decoration: none;
+  }
+  .clip-url:hover {
+    color: var(--accent);
+  }
+  .empty {
+    color: rgb(var(--gray));
+    font-style: italic;
+  }
+</style>
