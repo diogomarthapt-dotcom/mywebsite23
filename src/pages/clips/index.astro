@@ -13,235 +13,399 @@ interface Clip {
   description: string;
   tags: string[];
   date: string;
+  scheduledDate?: string;
+  stage?: 'to-watch' | 'watching' | 'watched';
+  thumbnail?: string;
+  channel?: string;
 }
 
 function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '');
-  } catch {
-    return url;
-  }
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
 }
 
-const { env } = Astro.locals.runtime;
-const clipsJson = await env.CLIPS_KV.get('clips');
-const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
+let clips: Clip[] = [];
+try {
+  const { env } = Astro.locals.runtime;
+  const clipsJson = await env.CLIPS_KV.get('clips');
+  clips = clipsJson ? JSON.parse(clipsJson) : [];
+} catch { /* KV not available */ }
 
 const allTags = [...new Set(clips.flatMap((c) => c.tags))].sort();
-
 const searchParams = new URL(Astro.request.url).searchParams;
 const activeTag = searchParams.get('tag') || '';
-const filteredClips = activeTag
-  ? clips.filter((c) => c.tags.includes(activeTag))
-  : clips;
+const activeView = searchParams.get('view') || 'list';
+
+const filteredClips = activeTag ? clips.filter((c) => c.tags.includes(activeTag)) : clips;
+
+const stageColumns = [
+  { key: 'to-watch', label: '📋 Para ver',  color: '#1a73e8' },
+  { key: 'watching', label: '▶️  A ver',    color: '#b06000' },
+  { key: 'watched',  label: '✅ Visto',     color: '#1e6e34' },
+];
 ---
 
 <!doctype html>
 <html lang="pt">
   <head>
-    <BaseHead
-      title={`Clipping | ${SITE_TITLE}`}
-      description="Links e artigos guardados"
-    />
+    <BaseHead title={`Clipping | ${SITE_TITLE}`} description="Links e vídeos guardados" />
+    <!-- Pass clips data to client JS -->
+    <script is:inline define:vars={{ clipsData: filteredClips }}>
+      window.__CLIPS__ = clipsData;
+    </script>
   </head>
   <body>
     <Header />
     <main>
-      <section>
-        <div class="page-header">
-          <h1>Clipping</h1>
-          <p class="subtitle">
-            {filteredClips.length}
-            {activeTag ? `clip${filteredClips.length !== 1 ? 's' : ''} com tag "${activeTag}"` : `artigo${clips.length !== 1 ? 's' : ''} guardado${clips.length !== 1 ? 's' : ''}`}
-          </p>
+      <!-- Header -->
+      <div class="page-header">
+        <h1>Clipping</h1>
+        <p class="subtitle">{filteredClips.length} {activeTag ? `com tag "${activeTag}"` : 'guardados'}</p>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <!-- Tag filter -->
+        {allTags.length > 0 && (
+          <div class="tags-filter">
+            <a href={`/clips?view=${activeView}`} class:list={['tag-btn', { active: !activeTag }]}>Todos</a>
+            {allTags.map((tag) => (
+              <a href={`/clips?tag=${encodeURIComponent(tag)}&view=${activeView}`} class:list={['tag-btn', { active: activeTag === tag }]}>{tag}</a>
+            ))}
+          </div>
+        )}
+
+        <!-- View switcher -->
+        <div class="view-tabs">
+          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=list`}
+             class:list={['view-tab', { active: activeView === 'list' }]}>Lista</a>
+          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=pipeline`}
+             class:list={['view-tab', { active: activeView === 'pipeline' }]}>Pipeline</a>
+          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=calendar`}
+             class:list={['view-tab', { active: activeView === 'calendar' }]}>Calendário</a>
         </div>
+      </div>
 
-        {
-          allTags.length > 0 && (
-            <div class="tags-filter">
-              <a href="/clips" class:list={['tag-btn', { active: !activeTag }]}>
-                Todos
-              </a>
-              {allTags.map((tag) => (
-                <a
-                  href={`/clips?tag=${encodeURIComponent(tag)}`}
-                  class:list={['tag-btn', { active: activeTag === tag }]}
-                >
-                  {tag}
-                </a>
-              ))}
-            </div>
-          )
-        }
-
-        {
-          filteredClips.length === 0 ? (
-            <p class="empty">Nenhum clip encontrado.</p>
-          ) : (
-            <ul class="clips-list">
-              {filteredClips.map((clip) => (
-                <li class="clip-card">
-                  <div class="clip-meta">
+      <!-- ── LIST VIEW ─────────────────────────────────────────── -->
+      {activeView === 'list' && (
+        filteredClips.length === 0 ? (
+          <p class="empty">Nenhum clip encontrado.</p>
+        ) : (
+          <ul class="clips-list">
+            {filteredClips.map((clip) => (
+              <li class="clip-card">
+                {clip.thumbnail && (
+                  <a href={clip.url} target="_blank" rel="noopener noreferrer" class="thumb-link">
+                    <img class="card-thumb" src={clip.thumbnail} alt="" loading="lazy" />
+                  </a>
+                )}
+                <div class="card-body">
+                  <div class="card-meta">
                     <time datetime={clip.date}>
-                      {new Date(clip.date).toLocaleDateString('pt-PT', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                      {new Date(clip.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </time>
+                    {(clip.stage && clip.stage !== 'to-watch') && (
+                      <span class={`stage-badge stage-${clip.stage}`}>
+                        {clip.stage === 'watching' ? '▶️ A ver' : '✅ Visto'}
+                      </span>
+                    )}
                     {clip.tags.length > 0 && (
                       <div class="clip-tags">
                         {clip.tags.map((tag) => (
-                          <a
-                            href={`/clips?tag=${encodeURIComponent(tag)}`}
-                            class="tag"
-                          >
-                            {tag}
-                          </a>
+                          <a href={`/clips?tag=${encodeURIComponent(tag)}&view=list`} class="tag">{tag}</a>
                         ))}
                       </div>
                     )}
                   </div>
-                  <a
-                    href={clip.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="clip-title"
-                  >
-                    {clip.title}
+                  <a href={clip.url} target="_blank" rel="noopener noreferrer" class="clip-title">{clip.title}</a>
+                  {clip.description && <p class="clip-description">{clip.description}</p>}
+                  <a href={clip.url} target="_blank" rel="noopener noreferrer" class="clip-url">
+                    ↗ {clip.channel ? `${clip.channel} · ` : ''}{getHostname(clip.url)}
                   </a>
-                  {clip.description && (
-                    <p class="clip-description">{clip.description}</p>
-                  )}
-                  <a
-                    href={clip.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="clip-url"
-                  >
-                    ↗ {getHostname(clip.url)}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )
-        }
-      </section>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+
+      <!-- ── PIPELINE VIEW ────────────────────────────────────── -->
+      {activeView === 'pipeline' && (
+        <div class="pipeline">
+          {stageColumns.map(({ key, label, color }) => {
+            const col = filteredClips.filter((c) => (c.stage || 'to-watch') === key);
+            return (
+              <div class="pipeline-col">
+                <div class="col-header" style={`border-top: 3px solid ${color}`}>
+                  <span>{label}</span>
+                  <span class="col-count">{col.length}</span>
+                </div>
+                {col.length === 0 ? (
+                  <p class="col-empty">Sem clips</p>
+                ) : (
+                  <ul class="col-list">
+                    {col.map((clip) => (
+                      <li class="pipeline-card">
+                        {clip.thumbnail && <img class="pipeline-thumb" src={clip.thumbnail} alt="" loading="lazy" />}
+                        <a href={clip.url} target="_blank" rel="noopener noreferrer" class="pipeline-title">{clip.title}</a>
+                        <span class="pipeline-host">{clip.channel || getHostname(clip.url)}</span>
+                        {clip.tags.length > 0 && (
+                          <div class="clip-tags" style="margin-top:0.35em">
+                            {clip.tags.map((tag) => <span class="tag">{tag}</span>)}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <!-- ── CALENDAR VIEW ────────────────────────────────────── -->
+      {activeView === 'calendar' && (
+        <div class="calendar-wrap">
+          <div class="cal-nav">
+            <button id="cal-prev">←</button>
+            <span id="cal-label"></span>
+            <button id="cal-next">→</button>
+          </div>
+          <div class="cal-grid" id="cal-grid">
+            {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d) => (
+              <div class="cal-weekday">{d}</div>
+            ))}
+          </div>
+          <div id="cal-detail" class="cal-detail" style="display:none">
+            <h3 id="cal-detail-date"></h3>
+            <ul id="cal-detail-list" class="col-list"></ul>
+          </div>
+        </div>
+      )}
     </main>
     <Footer />
   </body>
 </html>
 
+<script>
+  // Only runs in calendar view
+  const calGrid = document.getElementById('cal-grid');
+  if (calGrid) {
+    const clips: Array<{
+      id: string; url: string; title: string; description: string;
+      tags: string[]; date: string; scheduledDate?: string;
+      stage?: string; thumbnail?: string; channel?: string;
+    }> = (window as unknown as { __CLIPS__: typeof clips }).__CLIPS__ || [];
+
+    let current = new Date();
+    current.setDate(1);
+
+    function getClipDate(clip: typeof clips[0]): string {
+      return clip.scheduledDate || clip.date.slice(0, 10);
+    }
+
+    function renderCalendar() {
+      const year  = current.getFullYear();
+      const month = current.getMonth();
+
+      const label = document.getElementById('cal-label')!;
+      label.textContent = current.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+
+      // Remove all day cells (keep weekday headers = first 7 children)
+      while (calGrid.children.length > 7) calGrid.removeChild(calGrid.lastChild!);
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Group clips by date
+      const byDate: Record<string, typeof clips> = {};
+      clips.forEach((c) => {
+        const d = getClipDate(c);
+        if (d.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)) {
+          (byDate[d] = byDate[d] || []).push(c);
+        }
+      });
+
+      // Blank cells before first day
+      for (let i = 0; i < firstDay; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell cal-blank';
+        calGrid.appendChild(blank);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell' + (dateStr === today ? ' cal-today' : '');
+
+        const dayClips = byDate[dateStr] || [];
+        cell.innerHTML = `<span class="cal-day">${day}</span>`;
+
+        if (dayClips.length > 0) {
+          cell.classList.add('cal-has-clips');
+          const dots = document.createElement('div');
+          dots.className = 'cal-dots';
+          dayClips.slice(0, 3).forEach((c) => {
+            const dot = document.createElement('span');
+            dot.className = `cal-dot stage-dot-${c.stage || 'to-watch'}`;
+            dots.appendChild(dot);
+          });
+          if (dayClips.length > 3) {
+            const more = document.createElement('span');
+            more.className = 'cal-more';
+            more.textContent = `+${dayClips.length - 3}`;
+            dots.appendChild(more);
+          }
+          cell.appendChild(dots);
+
+          cell.addEventListener('click', () => showDetail(dateStr, dayClips));
+        }
+
+        calGrid.appendChild(cell);
+      }
+    }
+
+    function showDetail(dateStr: string, dayClips: typeof clips) {
+      const detail    = document.getElementById('cal-detail')!;
+      const dateLabel = document.getElementById('cal-detail-date')!;
+      const list      = document.getElementById('cal-detail-list')!;
+
+      const d = new Date(dateStr + 'T12:00:00');
+      dateLabel.textContent = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      list.innerHTML = dayClips.map((c) => `
+        <li class="pipeline-card">
+          ${c.thumbnail ? `<img class="pipeline-thumb" src="${c.thumbnail}" alt="" />` : ''}
+          <a href="${c.url}" target="_blank" rel="noopener noreferrer" class="pipeline-title">${c.title}</a>
+          <span class="pipeline-host">${c.channel || c.url}</span>
+        </li>
+      `).join('');
+      detail.style.display = 'block';
+      detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    document.getElementById('cal-prev')!.addEventListener('click', () => {
+      current.setMonth(current.getMonth() - 1);
+      renderCalendar();
+      document.getElementById('cal-detail')!.style.display = 'none';
+    });
+    document.getElementById('cal-next')!.addEventListener('click', () => {
+      current.setMonth(current.getMonth() + 1);
+      renderCalendar();
+      document.getElementById('cal-detail')!.style.display = 'none';
+    });
+
+    renderCalendar();
+  }
+</script>
+
 <style>
-  .page-header {
-    margin-bottom: 1.5em;
-  }
-  h1 {
-    margin-bottom: 0.15em;
-  }
-  .subtitle {
-    color: rgb(var(--gray));
-    margin: 0;
-    font-size: 0.9em;
-  }
-  .tags-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    margin-bottom: 2em;
-  }
+  .page-header { margin-bottom: 1em; }
+  h1 { margin-bottom: 0.1em; }
+  .subtitle { color: rgb(var(--gray)); margin: 0; font-size: 0.9em; }
+
+  .controls { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75em; margin-bottom: 1.75em; }
+
+  .tags-filter { display: flex; flex-wrap: wrap; gap: 0.4em; }
   .tag-btn {
-    padding: 0.25em 0.85em;
-    border-radius: 999px;
-    font-size: 0.8em;
-    text-decoration: none;
-    background: rgb(var(--gray-light));
-    color: rgb(var(--gray-dark));
-    border: 2px solid transparent;
-    transition: border-color 0.15s, color 0.15s;
+    padding: 0.2em 0.75em; border-radius: 999px; font-size: 0.78em;
+    text-decoration: none; background: rgb(var(--gray-light));
+    color: rgb(var(--gray-dark)); border: 2px solid transparent; transition: 0.15s;
   }
-  .tag-btn:hover,
-  .tag-btn.active {
-    border-color: var(--accent);
-    color: var(--accent);
+  .tag-btn.active, .tag-btn:hover { border-color: var(--accent); color: var(--accent); background: white; }
+
+  .view-tabs { display: flex; gap: 0; border: 1px solid rgb(var(--gray-light)); border-radius: 6px; overflow: hidden; }
+  .view-tab {
+    padding: 0.35em 1em; font-size: 0.82em; text-decoration: none;
+    color: rgb(var(--gray-dark)); background: white; transition: background 0.15s;
   }
-  .clips-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25em;
-  }
+  .view-tab + .view-tab { border-left: 1px solid rgb(var(--gray-light)); }
+  .view-tab.active, .view-tab:hover { background: var(--accent); color: white; }
+
+  /* List view */
+  .clips-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1em; }
   .clip-card {
-    border: 1px solid rgb(var(--gray-light));
-    border-radius: 8px;
-    padding: 1.25em 1.5em;
-    background: white;
-    box-shadow: var(--box-shadow);
+    display: flex; gap: 1em;
+    border: 1px solid rgb(var(--gray-light)); border-radius: 8px;
+    background: white; box-shadow: var(--box-shadow); overflow: hidden;
     transition: border-color 0.15s;
   }
-  .clip-card:hover {
-    border-color: rgb(var(--gray));
-  }
-  .clip-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.75em;
-    margin-bottom: 0.5em;
-    flex-wrap: wrap;
-  }
-  time {
-    font-size: 0.78em;
-    color: rgb(var(--gray));
-  }
-  .clip-tags {
-    display: flex;
-    gap: 0.35em;
-    flex-wrap: wrap;
-  }
+  .clip-card:hover { border-color: rgb(var(--gray)); }
+  .thumb-link { flex-shrink: 0; }
+  .card-thumb { width: 160px; height: 100%; object-fit: cover; display: block; }
+  .card-body { padding: 1em; flex: 1; min-width: 0; }
+  .card-meta { display: flex; align-items: center; gap: 0.6em; flex-wrap: wrap; margin-bottom: 0.4em; }
+  time { font-size: 0.78em; color: rgb(var(--gray)); }
+  .clip-tags { display: flex; gap: 0.3em; flex-wrap: wrap; }
   .tag {
-    font-size: 0.72em;
-    padding: 0.15em 0.6em;
-    border-radius: 999px;
-    background: rgba(var(--gray-light), 0.8);
-    color: rgb(var(--gray-dark));
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: background 0.15s, color 0.15s;
+    font-size: 0.72em; padding: 0.12em 0.55em; border-radius: 999px;
+    background: rgb(var(--gray-light)); color: rgb(var(--gray-dark));
+    text-decoration: none; transition: background 0.15s;
   }
-  .tag:hover {
-    background: var(--accent);
-    color: white;
+  .tag:hover { background: var(--accent); color: white; }
+  .clip-title { display: block; font-weight: 700; font-size: 1em; color: rgb(var(--black)); text-decoration: none; margin-bottom: 0.3em; line-height: 1.35; }
+  .clip-title:hover { color: var(--accent); }
+  .clip-description { font-size: 0.88em; color: rgb(var(--gray-dark)); margin: 0 0 0.4em; line-height: 1.5; }
+  .clip-url { font-size: 0.76em; color: rgb(var(--gray)); text-decoration: none; }
+  .clip-url:hover { color: var(--accent); }
+
+  /* Stage badges */
+  .stage-badge { font-size: 0.72em; padding: 0.12em 0.55em; border-radius: 999px; }
+  .stage-watching { background: #fce8b2; color: #b06000; }
+  .stage-watched  { background: #d4edda; color: #1e6e34; }
+
+  /* Pipeline */
+  .pipeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; align-items: start; }
+  .pipeline-col { background: rgb(var(--gray-light), 0.4); border-radius: 8px; padding: 1em; }
+  .col-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75em; margin-bottom: 0.75em; font-weight: 700; font-size: 0.9em; }
+  .col-count { background: white; border-radius: 999px; padding: 0.1em 0.5em; font-size: 0.8em; font-weight: 400; color: rgb(var(--gray)); }
+  .col-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6em; }
+  .col-empty { font-size: 0.85em; color: rgb(var(--gray)); font-style: italic; }
+  .pipeline-card { background: white; border-radius: 6px; padding: 0.75em; border: 1px solid rgb(var(--gray-light)); }
+  .pipeline-thumb { width: 100%; border-radius: 4px; display: block; margin-bottom: 0.5em; aspect-ratio: 16/9; object-fit: cover; }
+  .pipeline-title { display: block; font-size: 0.88em; font-weight: 700; color: rgb(var(--black)); text-decoration: none; line-height: 1.3; margin-bottom: 0.2em; }
+  .pipeline-title:hover { color: var(--accent); }
+  .pipeline-host { font-size: 0.74em; color: rgb(var(--gray)); }
+
+  /* Calendar */
+  .calendar-wrap { user-select: none; }
+  .cal-nav { display: flex; align-items: center; gap: 1em; margin-bottom: 1em; font-weight: 700; }
+  .cal-nav button {
+    background: white; border: 1px solid rgb(var(--gray-light));
+    border-radius: 4px; padding: 0.25em 0.75em; cursor: pointer; font-size: 1em;
+    transition: background 0.15s;
   }
-  .clip-title {
-    display: block;
-    font-size: 1.05em;
-    font-weight: 700;
-    color: rgb(var(--black));
-    text-decoration: none;
-    margin-bottom: 0.35em;
-    line-height: 1.35;
+  .cal-nav button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  #cal-label { font-size: 1.1em; text-transform: capitalize; }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px; background: rgb(var(--gray-light)); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; overflow: hidden;
   }
-  .clip-title:hover {
-    color: var(--accent);
+  .cal-weekday { background: white; text-align: center; font-size: 0.75em; font-weight: 700; padding: 0.5em 0; color: rgb(var(--gray)); }
+  .cal-cell {
+    background: white; min-height: 72px; padding: 0.4em; position: relative;
+    display: flex; flex-direction: column; gap: 0.25em;
   }
-  .clip-description {
-    font-size: 0.88em;
-    color: rgb(var(--gray-dark));
-    margin: 0 0 0.5em 0;
-    line-height: 1.5;
-  }
-  .clip-url {
-    font-size: 0.76em;
-    color: rgb(var(--gray));
-    text-decoration: none;
-  }
-  .clip-url:hover {
-    color: var(--accent);
-  }
-  .empty {
-    color: rgb(var(--gray));
-    font-style: italic;
+  .cal-blank { background: rgb(var(--gray-light), 0.3); }
+  .cal-today .cal-day { background: var(--accent); color: white; border-radius: 50%; width: 1.5em; height: 1.5em; display: flex; align-items: center; justify-content: center; }
+  .cal-has-clips { cursor: pointer; }
+  .cal-has-clips:hover { background: #f0f4ff; }
+  .cal-day { font-size: 0.8em; font-weight: 700; color: rgb(var(--gray-dark)); align-self: flex-start; }
+  .cal-dots { display: flex; flex-wrap: wrap; gap: 3px; }
+  .cal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-dot.stage-dot-to-watch { background: #1a73e8; }
+  .cal-dot.stage-dot-watching  { background: #f9ab00; }
+  .cal-dot.stage-dot-watched   { background: #34a853; }
+  .cal-more { font-size: 0.65em; color: rgb(var(--gray)); }
+  .cal-detail { margin-top: 1.5em; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1.25em; background: white; }
+  .cal-detail h3 { margin: 0 0 0.75em; font-size: 1em; text-transform: capitalize; }
+
+  .empty { color: rgb(var(--gray)); font-style: italic; }
+
+  @media (max-width: 600px) {
+    .pipeline { grid-template-columns: 1fr; }
+    .card-thumb { width: 100px; }
+    .controls { flex-direction: column; }
+    .cal-cell { min-height: 50px; }
   }
 </style>

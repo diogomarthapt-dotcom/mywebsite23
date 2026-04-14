@@ -13,142 +13,165 @@ interface Clip {
   description: string;
   tags: string[];
   date: string;
+  scheduledDate?: string;
+  stage: 'to-watch' | 'watching' | 'watched';
+  thumbnail?: string;
+  channel?: string;
 }
 
 function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '');
-  } catch {
-    return url;
-  }
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
 }
 
-const { env } = Astro.locals.runtime;
-const clipsJson = await env.CLIPS_KV.get('clips');
-const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
+let clips: Clip[] = [];
+try {
+  const { env } = Astro.locals.runtime;
+  const clipsJson = await env.CLIPS_KV.get('clips');
+  clips = clipsJson ? JSON.parse(clipsJson) : [];
+} catch { /* KV not available in this context */ }
+
+const stageLabel: Record<string, string> = {
+  'to-watch': 'Para ver',
+  'watching': 'A ver',
+  'watched': 'Visto',
+};
 ---
 
 <!doctype html>
 <html lang="pt">
   <head>
-    <BaseHead
-      title={`Admin Clipping | ${SITE_TITLE}`}
-      description="Gerir clips"
-    />
+    <BaseHead title={`Admin | ${SITE_TITLE}`} description="Gerir clips" />
   </head>
   <body>
     <Header />
     <main>
       <h1>Admin — Clipping</h1>
 
+      <!-- Lock screen -->
       <div id="lock-screen">
-        <p>Introduz a palavra-passe de administrador:</p>
+        <p>Palavra-passe de administrador:</p>
         <form id="password-form">
           <div class="pw-row">
-            <input
-              type="password"
-              id="password-input"
-              placeholder="Palavra-passe"
-              autocomplete="current-password"
-            />
+            <input type="password" id="password-input" placeholder="Palavra-passe" autocomplete="current-password" />
             <button type="submit">Entrar</button>
           </div>
-          <p id="auth-error" class="msg-error" style="display:none">
-            Palavra-passe incorreta.
-          </p>
+          <p id="auth-error" class="msg-error" style="display:none">Palavra-passe incorreta.</p>
         </form>
       </div>
 
+      <!-- Admin panel -->
       <div id="admin-panel" style="display:none">
+
+        <!-- Add clip form -->
         <section class="add-section">
           <h2>Adicionar Clip</h2>
-          <form id="add-form">
-            <div class="field">
-              <label for="url">URL *</label>
-              <input
-                type="url"
-                id="url"
-                name="url"
-                placeholder="https://exemplo.com/artigo"
-                required
-              />
+          <form id="add-form" autocomplete="off">
+
+            <div class="url-row">
+              <div class="field" style="flex:1">
+                <label for="url">URL *</label>
+                <input type="url" id="url" name="url" placeholder="https://youtube.com/watch?v=... ou qualquer URL" required />
+              </div>
+              <span id="fetch-status" class="fetch-status"></span>
             </div>
+
+            <!-- YouTube preview -->
+            <div id="yt-preview" style="display:none" class="yt-preview">
+              <img id="yt-thumb" src="" alt="Thumbnail" />
+              <div class="yt-info">
+                <span id="yt-channel"></span>
+              </div>
+            </div>
+
             <div class="field">
               <label for="title">Título *</label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                placeholder="Título do artigo"
-                required
-              />
+              <input type="text" id="title" name="title" placeholder="Título do clip" required />
             </div>
+
             <div class="field">
-              <label for="description">Descrição</label>
-              <textarea
-                id="description"
-                name="description"
-                rows="3"
-                placeholder="Breve descrição ou nota pessoal..."></textarea>
+              <label for="description">Descrição / Nota</label>
+              <textarea id="description" name="description" rows="2" placeholder="Nota pessoal, resumo..."></textarea>
             </div>
-            <div class="field">
-              <label for="tags">Tags <span class="hint">(separadas por vírgula)</span></label>
-              <input
-                type="text"
-                id="tags"
-                name="tags"
-                placeholder="tecnologia, IA, design"
-              />
+
+            <div class="field-row">
+              <div class="field">
+                <label for="tags">Tags <span class="hint">(vírgula)</span></label>
+                <input type="text" id="tags" name="tags" placeholder="trading, ted, IA" />
+              </div>
+              <div class="field">
+                <label for="stage">Estado</label>
+                <select id="stage" name="stage">
+                  <option value="to-watch">📋 Para ver</option>
+                  <option value="watching">▶️ A ver</option>
+                  <option value="watched">✅ Visto</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="scheduledDate">Data no calendário</label>
+                <input type="date" id="scheduledDate" name="scheduledDate" />
+              </div>
             </div>
+
+            <!-- Hidden fields filled by YouTube auto-fetch -->
+            <input type="hidden" id="thumbnail" name="thumbnail" />
+            <input type="hidden" id="channel" name="channel" />
+
             <div class="form-actions">
               <button type="submit" id="add-btn">Guardar Clip</button>
-              <a href="/clips" target="_blank" class="view-link">Ver clipping público ↗</a>
+              <a href="/clips" target="_blank" class="view-link">Ver clipping ↗</a>
             </div>
             <p id="add-error" class="msg-error" style="display:none"></p>
-            <p id="add-success" class="msg-success" style="display:none">
-              Clip guardado com sucesso!
-            </p>
+            <p id="add-success" class="msg-success" style="display:none">Clip guardado!</p>
           </form>
         </section>
 
+        <!-- Clips list -->
         <section class="clips-section">
-          <h2>Clips guardados <span class="count">({clips.length})</span></h2>
-          {
-            clips.length === 0 ? (
-              <p class="empty">Sem clips ainda. Adiciona o primeiro acima.</p>
-            ) : (
-              <ul class="clips-list" id="clips-list">
-                {clips.map((clip) => (
-                  <li class="clip-item" data-id={clip.id}>
-                    <div class="clip-info">
-                      <a
-                        href={clip.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="clip-title"
-                      >
-                        {clip.title}
-                      </a>
-                      <span class="clip-url">{getHostname(clip.url)}</span>
-                      {clip.tags.length > 0 && (
-                        <div class="clip-tags">
-                          {clip.tags.map((tag) => (
-                            <span class="tag">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                      {clip.description && (
-                        <p class="clip-desc">{clip.description}</p>
-                      )}
+          <div class="section-header">
+            <h2>Clips guardados <span class="count">({clips.length})</span></h2>
+            <div class="filter-row">
+              <button class="filter-btn active" data-filter="all">Todos</button>
+              <button class="filter-btn" data-filter="to-watch">Para ver</button>
+              <button class="filter-btn" data-filter="watching">A ver</button>
+              <button class="filter-btn" data-filter="watched">Visto</button>
+            </div>
+          </div>
+
+          <ul class="clips-list" id="clips-list">
+            {clips.map((clip) => (
+              <li class="clip-item" data-id={clip.id} data-stage={clip.stage || 'to-watch'}>
+                {clip.thumbnail && (
+                  <img class="clip-thumb" src={clip.thumbnail} alt="" loading="lazy" />
+                )}
+                <div class="clip-info">
+                  <div class="clip-top">
+                    <a href={clip.url} target="_blank" rel="noopener noreferrer" class="clip-title">{clip.title}</a>
+                    <span class={`stage-badge stage-${clip.stage || 'to-watch'}`}>
+                      {stageLabel[clip.stage || 'to-watch']}
+                    </span>
+                  </div>
+                  <span class="clip-url">{clip.channel ? `${clip.channel} · ` : ''}{getHostname(clip.url)}</span>
+                  {clip.tags.length > 0 && (
+                    <div class="clip-tags">
+                      {clip.tags.map((tag) => <span class="tag">{tag}</span>)}
                     </div>
-                    <button class="delete-btn" data-id={clip.id}>
-                      Apagar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )
-          }
+                  )}
+                  {clip.description && <p class="clip-desc">{clip.description}</p>}
+                  <div class="clip-actions">
+                    <select class="stage-select" data-id={clip.id}>
+                      <option value="to-watch" selected={!clip.stage || clip.stage === 'to-watch'}>📋 Para ver</option>
+                      <option value="watching" selected={clip.stage === 'watching'}>▶️ A ver</option>
+                      <option value="watched" selected={clip.stage === 'watched'}>✅ Visto</option>
+                    </select>
+                    <button class="delete-btn" data-id={clip.id}>Apagar</button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {clips.length === 0 && (
+            <p class="empty" id="empty-msg">Sem clips ainda. Adiciona o primeiro acima.</p>
+          )}
         </section>
       </div>
     </main>
@@ -159,34 +182,25 @@ const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
 <script>
   let adminPassword = '';
 
-  const lockScreen = document.getElementById('lock-screen') as HTMLElement;
-  const adminPanel = document.getElementById('admin-panel') as HTMLElement;
+  const lockScreen   = document.getElementById('lock-screen') as HTMLElement;
+  const adminPanel   = document.getElementById('admin-panel') as HTMLElement;
   const passwordForm = document.getElementById('password-form') as HTMLFormElement;
   const passwordInput = document.getElementById('password-input') as HTMLInputElement;
-  const authError = document.getElementById('auth-error') as HTMLElement;
+  const authError    = document.getElementById('auth-error') as HTMLElement;
 
   const saved = sessionStorage.getItem('clips-admin-pw');
-  if (saved) {
-    adminPassword = saved;
-    unlock();
-  }
+  if (saved) { adminPassword = saved; unlock(); }
 
   passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const pwd = passwordInput.value;
     authError.style.display = 'none';
-
+    const pwd = passwordInput.value;
     const res = await fetch('/api/clips/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pwd }),
     });
-
-    if (!res.ok) {
-      authError.style.display = 'block';
-      return;
-    }
-
+    if (!res.ok) { authError.style.display = 'block'; return; }
     adminPassword = pwd;
     sessionStorage.setItem('clips-admin-pw', pwd);
     unlock();
@@ -197,11 +211,47 @@ const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
     adminPanel.style.display = 'block';
   }
 
-  // Add clip form
-  const addForm = document.getElementById('add-form') as HTMLFormElement;
-  const addError = document.getElementById('add-error') as HTMLElement;
+  // ── YouTube auto-fill ────────────────────────────────────────────
+  const urlInput     = document.getElementById('url') as HTMLInputElement;
+  const titleInput   = document.getElementById('title') as HTMLInputElement;
+  const thumbInput   = document.getElementById('thumbnail') as HTMLInputElement;
+  const channelInput = document.getElementById('channel') as HTMLInputElement;
+  const ytPreview    = document.getElementById('yt-preview') as HTMLElement;
+  const ytThumb      = document.getElementById('yt-thumb') as HTMLImageElement;
+  const ytChannel    = document.getElementById('yt-channel') as HTMLElement;
+  const fetchStatus  = document.getElementById('fetch-status') as HTMLElement;
+
+  function isYouTube(url: string) {
+    return /youtube\.com|youtu\.be/.test(url);
+  }
+
+  urlInput.addEventListener('blur', async () => {
+    const url = urlInput.value.trim();
+    if (!url || !isYouTube(url)) return;
+    fetchStatus.textContent = '⏳ A carregar...';
+    try {
+      const res = await fetch(`/api/clips/oembed?url=${encodeURIComponent(url)}`);
+      if (!res.ok) { fetchStatus.textContent = '⚠️ Não encontrado'; return; }
+      const data = await res.json() as { title: string; channel: string; thumbnail: string };
+      if (!titleInput.value) titleInput.value = data.title;
+      channelInput.value  = data.channel  || '';
+      thumbInput.value    = data.thumbnail || '';
+      if (data.thumbnail) {
+        ytThumb.src          = data.thumbnail;
+        ytChannel.textContent = data.channel || '';
+        ytPreview.style.display = 'flex';
+      }
+      fetchStatus.textContent = '✅ YouTube detectado';
+    } catch {
+      fetchStatus.textContent = '❌ Erro';
+    }
+  });
+
+  // ── Add clip form ────────────────────────────────────────────────
+  const addForm   = document.getElementById('add-form') as HTMLFormElement;
+  const addError  = document.getElementById('add-error') as HTMLElement;
   const addSuccess = document.getElementById('add-success') as HTMLElement;
-  const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
+  const addBtn    = document.getElementById('add-btn') as HTMLButtonElement;
 
   addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -210,44 +260,42 @@ const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
     addBtn.disabled = true;
     addBtn.textContent = 'A guardar...';
 
-    const data = new FormData(addForm);
-    const url = (data.get('url') as string).trim();
-    const title = (data.get('title') as string).trim();
-    const description = (data.get('description') as string).trim();
-    const tagsStr = data.get('tags') as string;
-    const tags = tagsStr
-      ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean)
-      : [];
+    const fd  = new FormData(addForm);
+    const url  = (fd.get('url') as string).trim();
+    const title = (fd.get('title') as string).trim();
+    const description = (fd.get('description') as string).trim();
+    const tagsStr = fd.get('tags') as string;
+    const tags = tagsStr ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean) : [];
+    const stage = fd.get('stage') as string;
+    const scheduledDate = (fd.get('scheduledDate') as string) || undefined;
+    const thumbnail = (fd.get('thumbnail') as string) || undefined;
+    const channel   = (fd.get('channel') as string) || undefined;
 
     try {
       const res = await fetch('/api/clips', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Password': adminPassword,
-        },
-        body: JSON.stringify({ url, title, description, tags }),
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ url, title, description, tags, stage, scheduledDate, thumbnail, channel }),
       });
 
       if (!res.ok) {
         const err = await res.json() as { error: string };
-        addError.textContent = err.error || 'Erro ao guardar clip.';
+        addError.textContent = err.error || 'Erro ao guardar.';
         addError.style.display = 'block';
       } else {
-        const newClip = await res.json() as {
-          id: string;
-          url: string;
-          title: string;
-          description: string;
-          tags: string[];
+        const clip = await res.json() as {
+          id: string; url: string; title: string; description: string;
+          tags: string[]; stage: string; thumbnail?: string; channel?: string;
         };
         addSuccess.style.display = 'block';
         addForm.reset();
-        prependClip(newClip);
+        ytPreview.style.display = 'none';
+        fetchStatus.textContent = '';
+        prependClip(clip);
         updateCount(1);
       }
     } catch {
-      addError.textContent = 'Erro de rede. Tenta novamente.';
+      addError.textContent = 'Erro de rede.';
       addError.style.display = 'block';
     } finally {
       addBtn.disabled = false;
@@ -255,111 +303,139 @@ const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
     }
   });
 
-  function getHostname(url: string): string {
-    try {
-      return new URL(url).hostname.replace('www.', '');
-    } catch {
-      return url;
-    }
+  // ── Helpers ──────────────────────────────────────────────────────
+  function getHostname(url: string) {
+    try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+  }
+
+  function stageLabel(s: string) {
+    return s === 'watching' ? '▶️ A ver' : s === 'watched' ? '✅ Visto' : '📋 Para ver';
   }
 
   function prependClip(clip: {
-    id: string;
-    url: string;
-    title: string;
-    description: string;
-    tags: string[];
+    id: string; url: string; title: string; description: string;
+    tags: string[]; stage: string; thumbnail?: string; channel?: string;
   }) {
-    const list = document.getElementById('clips-list') as HTMLUListElement | null;
-    if (!list) return;
+    // Remove empty message
+    document.getElementById('empty-msg')?.remove();
 
+    const list = document.getElementById('clips-list') as HTMLUListElement;
     const li = document.createElement('li');
     li.className = 'clip-item';
-    li.dataset.id = clip.id;
+    li.dataset.id    = clip.id;
+    li.dataset.stage = clip.stage;
     li.innerHTML = `
+      ${clip.thumbnail ? `<img class="clip-thumb" src="${clip.thumbnail}" alt="" loading="lazy" />` : ''}
       <div class="clip-info">
-        <a href="${clip.url}" target="_blank" rel="noopener noreferrer" class="clip-title">${clip.title}</a>
-        <span class="clip-url">${getHostname(clip.url)}</span>
+        <div class="clip-top">
+          <a href="${clip.url}" target="_blank" rel="noopener noreferrer" class="clip-title">${clip.title}</a>
+          <span class="stage-badge stage-${clip.stage}">${stageLabel(clip.stage)}</span>
+        </div>
+        <span class="clip-url">${clip.channel ? clip.channel + ' · ' : ''}${getHostname(clip.url)}</span>
         ${clip.tags.length > 0 ? `<div class="clip-tags">${clip.tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
         ${clip.description ? `<p class="clip-desc">${clip.description}</p>` : ''}
+        <div class="clip-actions">
+          <select class="stage-select" data-id="${clip.id}">
+            <option value="to-watch" ${clip.stage === 'to-watch' ? 'selected' : ''}>📋 Para ver</option>
+            <option value="watching" ${clip.stage === 'watching' ? 'selected' : ''}>▶️ A ver</option>
+            <option value="watched"  ${clip.stage === 'watched'  ? 'selected' : ''}>✅ Visto</option>
+          </select>
+          <button class="delete-btn" data-id="${clip.id}">Apagar</button>
+        </div>
       </div>
-      <button class="delete-btn" data-id="${clip.id}">Apagar</button>
     `;
+    attachStageSelect(li.querySelector('.stage-select') as HTMLSelectElement);
     attachDeleteBtn(li.querySelector('.delete-btn') as HTMLButtonElement);
     list.prepend(li);
   }
 
   function updateCount(delta: number) {
-    const count = document.querySelector('.count');
-    if (!count) return;
-    const match = count.textContent?.match(/\d+/);
-    if (match) {
-      count.textContent = `(${parseInt(match[0]) + delta})`;
-    }
+    const el = document.querySelector('.count');
+    if (!el) return;
+    const n = parseInt(el.textContent?.match(/\d+/)?.[0] || '0');
+    el.textContent = `(${n + delta})`;
   }
 
-  function attachDeleteBtn(btn: HTMLButtonElement) {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      if (!confirm('Tens a certeza que queres apagar este clip?')) return;
-      btn.disabled = true;
-      btn.textContent = '...';
-
-      try {
-        const res = await fetch(`/api/clips/${id}`, {
-          method: 'DELETE',
-          headers: { 'X-Admin-Password': adminPassword },
-        });
-
-        if (res.ok) {
-          btn.closest('.clip-item')?.remove();
-          updateCount(-1);
-        } else {
-          btn.disabled = false;
-          btn.textContent = 'Apagar';
-          alert('Erro ao apagar clip.');
-        }
-      } catch {
-        btn.disabled = false;
-        btn.textContent = 'Apagar';
-        alert('Erro de rede.');
+  function attachStageSelect(sel: HTMLSelectElement) {
+    sel.addEventListener('change', async () => {
+      const id    = sel.dataset.id!;
+      const stage = sel.value;
+      const res = await fetch('/api/clips', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ id, stage }),
+      });
+      if (res.ok) {
+        const li = sel.closest('.clip-item') as HTMLElement;
+        li.dataset.stage = stage;
+        const badge = li.querySelector('.stage-badge') as HTMLElement;
+        badge.className = `stage-badge stage-${stage}`;
+        badge.textContent = stageLabel(stage);
+        applyFilter(currentFilter);
       }
     });
   }
 
-  document.querySelectorAll('.delete-btn').forEach((btn) => {
-    attachDeleteBtn(btn as HTMLButtonElement);
+  function attachDeleteBtn(btn: HTMLButtonElement) {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Apagar este clip?')) return;
+      btn.disabled = true; btn.textContent = '...';
+      const id  = btn.dataset.id!;
+      const res = await fetch(`/api/clips/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Password': adminPassword },
+      });
+      if (res.ok) {
+        btn.closest('.clip-item')?.remove();
+        updateCount(-1);
+        if (!document.querySelector('.clip-item')) {
+          const list = document.getElementById('clips-list')!;
+          const p = document.createElement('p');
+          p.id = 'empty-msg'; p.className = 'empty';
+          p.textContent = 'Sem clips ainda.';
+          list.after(p);
+        }
+      } else {
+        btn.disabled = false; btn.textContent = 'Apagar';
+        alert('Erro ao apagar clip.');
+      }
+    });
+  }
+
+  // Attach handlers to existing elements
+  document.querySelectorAll<HTMLSelectElement>('.stage-select').forEach(attachStageSelect);
+  document.querySelectorAll<HTMLButtonElement>('.delete-btn').forEach(attachDeleteBtn);
+
+  // ── Filter by stage ──────────────────────────────────────────────
+  let currentFilter = 'all';
+
+  document.querySelectorAll<HTMLButtonElement>('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter || 'all';
+      applyFilter(currentFilter);
+    });
   });
+
+  function applyFilter(filter: string) {
+    document.querySelectorAll<HTMLElement>('.clip-item').forEach((li) => {
+      li.style.display = filter === 'all' || li.dataset.stage === filter ? '' : 'none';
+    });
+  }
 </script>
 
 <style>
-  h1 {
-    margin-bottom: 1.25em;
-  }
-  h2 {
-    font-size: 1.4em;
-    margin: 0 0 1em 0;
-  }
-  .count {
-    color: rgb(var(--gray));
-    font-weight: 400;
-    font-size: 0.85em;
-  }
+  h1 { margin-bottom: 1.25em; }
+  h2 { font-size: 1.4em; margin: 0 0 1em 0; }
+  .count { color: rgb(var(--gray)); font-weight: 400; font-size: 0.85em; }
 
-  /* Lock screen */
-  #lock-screen {
-    max-width: 420px;
-  }
-  .pw-row {
-    display: flex;
-    gap: 0.75em;
-    align-items: center;
-  }
-  #password-input {
-    flex: 1;
-  }
+  /* Lock */
+  #lock-screen { max-width: 420px; }
+  .pw-row { display: flex; gap: 0.75em; align-items: center; }
+  #password-input { flex: 1; }
 
-  /* Add form */
+  /* Add section */
   .add-section {
     background: white;
     border: 1px solid rgb(var(--gray-light));
@@ -368,153 +444,88 @@ const clips: Clip[] = clipsJson ? JSON.parse(clipsJson) : [];
     margin-bottom: 2.5em;
     box-shadow: var(--box-shadow);
   }
-  .field {
-    margin-bottom: 1.1em;
+  .url-row { display: flex; align-items: flex-end; gap: 0.75em; }
+  .fetch-status { font-size: 0.8em; white-space: nowrap; padding-bottom: 0.6em; color: rgb(var(--gray)); }
+  .yt-preview {
+    display: flex; align-items: center; gap: 1em;
+    background: rgb(var(--gray-light), 0.4);
+    border-radius: 6px; padding: 0.75em; margin-bottom: 0.75em;
   }
-  label {
-    display: block;
-    font-size: 0.84em;
-    font-weight: 700;
-    margin-bottom: 0.3em;
-    color: rgb(var(--gray-dark));
-  }
-  .hint {
-    font-weight: 400;
-    color: rgb(var(--gray));
-  }
-  input[type='text'],
-  input[type='url'],
-  input[type='password'],
-  textarea {
-    width: 100%;
-    padding: 0.5em 0.75em;
+  .yt-preview img { width: 120px; border-radius: 4px; flex-shrink: 0; }
+  .yt-info { font-size: 0.85em; color: rgb(var(--gray-dark)); }
+  .field { margin-bottom: 1em; }
+  .field-row { display: flex; gap: 1em; flex-wrap: wrap; }
+  .field-row .field { flex: 1; min-width: 160px; }
+  label { display: block; font-size: 0.84em; font-weight: 700; margin-bottom: 0.3em; color: rgb(var(--gray-dark)); }
+  .hint { font-weight: 400; color: rgb(var(--gray)); }
+  input[type='text'], input[type='url'], input[type='password'], input[type='date'], textarea, select {
+    width: 100%; padding: 0.5em 0.75em;
     border: 1px solid rgb(var(--gray-light));
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 0.95em;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-  }
-  input:focus,
-  textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .form-actions {
-    display: flex;
-    align-items: center;
-    gap: 1.5em;
-    flex-wrap: wrap;
-  }
-  button[type='submit'] {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 0.6em 1.5em;
-    border-radius: 4px;
-    font-size: 1em;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.15s;
-  }
-  button[type='submit']:hover {
-    background: var(--accent-dark);
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .view-link {
-    font-size: 0.88em;
-    color: rgb(var(--gray));
-  }
-  .msg-error {
-    color: #c00;
-    font-size: 0.88em;
-    margin-top: 0.6em;
-  }
-  .msg-success {
-    color: #080;
-    font-size: 0.88em;
-    margin-top: 0.6em;
-  }
-
-  /* Clips list */
-  .clips-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75em;
-  }
-  .clip-item {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1em;
-    padding: 1em 1.25em;
-    border: 1px solid rgb(var(--gray-light));
-    border-radius: 8px;
+    border-radius: 4px; font-family: inherit; font-size: 0.95em;
+    box-sizing: border-box; transition: border-color 0.15s;
     background: white;
   }
-  .clip-info {
-    flex: 1;
-    min-width: 0;
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+  .form-actions { display: flex; align-items: center; gap: 1.5em; flex-wrap: wrap; }
+  button[type='submit'] {
+    background: var(--accent); color: white; border: none;
+    padding: 0.6em 1.5em; border-radius: 4px; font-size: 1em;
+    cursor: pointer; font-family: inherit; transition: background 0.15s;
   }
-  .clip-title {
-    display: block;
-    font-weight: 700;
-    font-size: 0.95em;
-    color: rgb(var(--black));
-    text-decoration: none;
-    margin-bottom: 0.15em;
+  button[type='submit']:hover { background: var(--accent-dark); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .view-link { font-size: 0.88em; color: rgb(var(--gray)); }
+  .msg-error  { color: #c00; font-size: 0.88em; margin-top: 0.6em; }
+  .msg-success { color: #080; font-size: 0.88em; margin-top: 0.6em; }
+
+  /* Section header */
+  .section-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.75em; margin-bottom: 1em; }
+  .section-header h2 { margin: 0; }
+  .filter-row { display: flex; gap: 0.4em; }
+  .filter-btn {
+    background: rgb(var(--gray-light)); border: 2px solid transparent;
+    border-radius: 999px; padding: 0.2em 0.8em; font-size: 0.78em;
+    cursor: pointer; font-family: inherit; transition: border-color 0.15s;
   }
-  .clip-title:hover {
-    color: var(--accent);
+  .filter-btn.active, .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: white; }
+
+  /* Clip list */
+  .clips-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75em; }
+  .clip-item {
+    display: flex; gap: 1em;
+    padding: 0.9em 1.1em;
+    border: 1px solid rgb(var(--gray-light));
+    border-radius: 8px; background: white; align-items: flex-start;
   }
-  .clip-url {
-    font-size: 0.76em;
-    color: rgb(var(--gray));
-  }
-  .clip-tags {
-    display: flex;
-    gap: 0.35em;
-    flex-wrap: wrap;
-    margin-top: 0.4em;
-  }
-  .tag {
-    font-size: 0.72em;
-    padding: 0.15em 0.6em;
-    border-radius: 999px;
-    background: rgb(var(--gray-light));
-    color: rgb(var(--gray-dark));
-  }
-  .clip-desc {
-    font-size: 0.84em;
-    color: rgb(var(--gray-dark));
-    margin: 0.4em 0 0;
-    line-height: 1.4;
-  }
+  .clip-thumb { width: 100px; border-radius: 4px; flex-shrink: 0; object-fit: cover; aspect-ratio: 16/9; }
+  .clip-info { flex: 1; min-width: 0; }
+  .clip-top { display: flex; align-items: flex-start; gap: 0.5em; flex-wrap: wrap; margin-bottom: 0.2em; }
+  .clip-title { font-weight: 700; font-size: 0.95em; color: rgb(var(--black)); text-decoration: none; flex: 1; }
+  .clip-title:hover { color: var(--accent); }
+  .clip-url { font-size: 0.76em; color: rgb(var(--gray)); }
+  .clip-tags { display: flex; gap: 0.35em; flex-wrap: wrap; margin-top: 0.4em; }
+  .tag { font-size: 0.72em; padding: 0.15em 0.6em; border-radius: 999px; background: rgb(var(--gray-light)); color: rgb(var(--gray-dark)); }
+  .clip-desc { font-size: 0.84em; color: rgb(var(--gray-dark)); margin: 0.3em 0 0; line-height: 1.4; }
+  .clip-actions { display: flex; align-items: center; gap: 0.5em; margin-top: 0.5em; }
+  .stage-select { width: auto; font-size: 0.8em; padding: 0.25em 0.5em; }
   .delete-btn {
-    background: none;
-    border: 1px solid #c00;
-    color: #c00;
-    padding: 0.3em 0.75em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.82em;
-    font-family: inherit;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: background 0.15s, color 0.15s;
+    background: none; border: 1px solid #c00; color: #c00;
+    padding: 0.25em 0.65em; border-radius: 4px; cursor: pointer;
+    font-size: 0.8em; font-family: inherit; transition: background 0.15s, color 0.15s;
   }
-  .delete-btn:hover {
-    background: #c00;
-    color: white;
-  }
-  .empty {
-    color: rgb(var(--gray));
-    font-style: italic;
+  .delete-btn:hover { background: #c00; color: white; }
+
+  /* Stage badges */
+  .stage-badge { font-size: 0.72em; padding: 0.15em 0.6em; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+  .stage-to-watch { background: #e8f0fe; color: #1a73e8; }
+  .stage-watching { background: #fce8b2; color: #b06000; }
+  .stage-watched  { background: #d4edda; color: #1e6e34; }
+
+  .empty { color: rgb(var(--gray)); font-style: italic; }
+
+  @media (max-width: 500px) {
+    .clip-thumb { display: none; }
+    .field-row { flex-direction: column; }
+    .section-header { flex-direction: column; }
   }
 </style>

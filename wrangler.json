@@ -14,7 +14,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "CLIPS_KV",
-			"id": "REPLACE_WITH_YOUR_KV_ID"
+			"id": "REPLACE_WITH_YOUR_KV_ID",
+			"preview_id": "00000000000000000000000000000001"
 		}
 	]
 }
