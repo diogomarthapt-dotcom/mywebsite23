@@ -1,50 +1,466 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import { quintas } from '../data/quintas';
 ---
 
 <!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to <a href="https://docs.astro.build/"
-					>read the docs
-				</a> or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out <a
-					href="https://github.com/Charca/astro-blog-template"
-					>astro-blog-template
-				</a> by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{SITE_TITLE} — Da Quinta à Sua Mesa</title>
+  <meta name="description" content={SITE_DESCRIPTION} />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <Header />
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="container hero-content">
+      <span class="hero-pill">🌱 Projecto Piloto · Cascais & Sintra</span>
+      <h1 class="hero-title">Da Quinta<br/>à Sua Mesa</h1>
+      <p class="hero-sub">
+        Produtos frescos directos dos agricultores locais.<br/>
+        Escolha, encomende e receba em casa — ou levante no Mercado de Cascais.
+      </p>
+      <div class="hero-actions">
+        <a href="#quintas" class="btn btn-primary">Ver Quintas</a>
+        <a href="/como-funciona" class="btn btn-outline-white">Como Funciona</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><strong>2</strong><span>Quintas</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><strong>16+</strong><span>Produtos</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><strong>Cascais</strong><span>Região</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS — TEASER -->
+  <section class="how-teaser">
+    <div class="container">
+      <div class="steps-row">
+        <div class="step">
+          <div class="step-icon">🛒</div>
+          <h3>Escolha</h3>
+          <p>Navegue pelos produtos frescos das quintas locais e adicione ao carrinho.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-icon">🚴</div>
+          <h3>Entrega ou Recolha</h3>
+          <p>Entrega ao domicílio em Cascais e Sintra, ou levante no Mercado de Cascais.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-icon">🥗</div>
+          <h3>Desfrute</h3>
+          <p>Produto fresquíssimo, sem intermediários, com qualidade garantida pelo agricultor.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FARMS SECTION -->
+  <section class="farms-section" id="quintas">
+    <div class="container">
+      <div class="section-header">
+        <h2>As Nossas Quintas</h2>
+        <p>Conheça os agricultores por detrás dos seus produtos</p>
+      </div>
+      <div class="farms-grid">
+        {quintas.map((quinta) => (
+          <article class="farm-card" style={`--card-accent: ${quinta.bgColor}`}>
+            <div class="farm-card-header">
+              <div class="farm-card-emoji">{quinta.emoji}</div>
+              <div class="farm-card-meta">
+                <div class="farm-rating">
+                  <span class="stars">★★★★★</span>
+                  <span class="rating-num">{quinta.rating}</span>
+                  <span class="rating-count">({quinta.reviewCount})</span>
+                </div>
+                <div class="farm-certs">
+                  {quinta.certifications.map((cert) => (
+                    <span class="badge badge-dark">{cert}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div class="farm-card-body">
+              <h3 class="farm-name">{quinta.name}</h3>
+              <p class="farm-farmer">👨‍🌾 {quinta.farmer}</p>
+              <p class="farm-location">📍 {quinta.location}</p>
+              <p class="farm-desc">{quinta.description}</p>
+
+              <div class="farm-info-row">
+                <div class="farm-info-item">
+                  <span class="info-label">Recolha</span>
+                  <span class="info-value">{quinta.pickupInfo}</span>
+                </div>
+                <div class="farm-info-item">
+                  <span class="info-label">Entrega</span>
+                  <span class="info-value">+€{quinta.deliveryFee.toFixed(2)}</span>
+                </div>
+                <div class="farm-info-item">
+                  <span class="info-label">Mínimo</span>
+                  <span class="info-value">€{quinta.minOrder}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="farm-card-footer">
+              <div class="products-preview">
+                {quinta.products.filter(p => p.available).slice(0, 4).map(p => (
+                  <span class="product-chip">{p.emoji} {p.name}</span>
+                ))}
+                {quinta.products.filter(p => p.available).length > 4 && (
+                  <span class="product-chip product-chip-more">
+                    +{quinta.products.filter(p => p.available).length - 4} mais
+                  </span>
+                )}
+              </div>
+              <a href={`/quintas/${quinta.slug}`} class="btn btn-primary farm-cta">
+                Ver Produtos →
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE PROPS -->
+  <section class="values-section">
+    <div class="container">
+      <div class="values-grid">
+        <div class="value-item">
+          <span class="value-icon">🌿</span>
+          <h4>100% Local</h4>
+          <p>Produzido a menos de 30km. Fresco, sazonal e sem léguas de transporte.</p>
+        </div>
+        <div class="value-item">
+          <span class="value-icon">💶</span>
+          <h4>Justo para Todos</h4>
+          <p>O agricultor recebe mais. Você paga menos que no supermercado.</p>
+        </div>
+        <div class="value-item">
+          <span class="value-icon">📦</span>
+          <h4>Entrega Rápida</h4>
+          <p>Entrega ao domicílio na sua zona, coordenada localmente.</p>
+        </div>
+        <div class="value-item">
+          <span class="value-icon">🤝</span>
+          <h4>Comunidade</h4>
+          <p>Conhece quem cultiva. Suporta a agricultura local de Cascais e Sintra.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FARMER CTA -->
+  <section class="farmer-cta-section">
+    <div class="container">
+      <div class="farmer-cta-card">
+        <div class="farmer-cta-text">
+          <span class="farmer-pill">Para Agricultores</span>
+          <h2>É agricultor em Cascais ou Sintra?</h2>
+          <p>
+            Junte-se ao nosso projecto piloto. Venda directamente ao consumidor,<br/>
+            sem intermediários, com entregas coordenadas pela plataforma.
+          </p>
+          <ul class="farmer-benefits">
+            <li>✓ Sem comissões na fase piloto</li>
+            <li>✓ Você define os preços e disponibilidade</li>
+            <li>✓ Pagamento rápido e transparente</li>
+            <li>✓ Apoio na configuração do perfil</li>
+          </ul>
+        </div>
+        <div class="farmer-cta-action">
+          <div class="farmer-contact-box">
+            <p class="contact-intro">Fale connosco:</p>
+            <a href="tel:+351210000000" class="contact-phone">📞 +351 210 000 000</a>
+            <p class="contact-or">ou</p>
+            <a href="mailto:quintas@colheita.pt" class="contact-email">✉️ quintas@colheita.pt</a>
+            <p class="contact-note">Resposta em 24h</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</body>
 </html>
+
+<style>
+  /* ===== HERO ===== */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 5rem 0 4rem;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--green-800) 0%, var(--green-700) 60%, var(--green-500) 100%);
+    z-index: 0;
+  }
+  .hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #fff;
+  }
+  .hero-pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.5rem;
+  }
+  .hero-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.25rem;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: rgba(255,255,255,0.85);
+    max-width: 540px;
+    margin: 0 auto 2rem;
+    line-height: 1.65;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+  }
+  .btn-outline-white {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.6);
+    padding: 0.65rem 1.4rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-outline-white:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.9); color: #fff; }
+
+  .hero-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    color: rgba(255,255,255,0.8);
+  }
+  .stat { text-align: center; }
+  .stat strong { display: block; font-size: 1.4rem; font-weight: 700; color: #fff; }
+  .stat span { font-size: 0.8rem; opacity: 0.75; }
+  .stat-divider { width: 1px; height: 2.5rem; background: rgba(255,255,255,0.25); }
+
+  /* ===== HOW TEASER ===== */
+  .how-teaser {
+    background: var(--green-50);
+    padding: 2.5rem 0;
+    border-bottom: 1px solid var(--green-100);
+  }
+  .steps-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .step {
+    flex: 1;
+    min-width: 180px;
+    max-width: 260px;
+    text-align: center;
+    padding: 1rem;
+  }
+  .step-icon { font-size: 2rem; margin-bottom: 0.6rem; }
+  .step h3 { font-size: 1rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .step p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+  .step-arrow {
+    font-size: 1.5rem;
+    color: var(--green-400);
+    flex-shrink: 0;
+    padding: 0 0.25rem;
+  }
+  @media (max-width: 600px) { .step-arrow { display: none; } }
+
+  /* ===== FARMS SECTION ===== */
+  .farms-section { padding: 4rem 0; }
+  .section-header { text-align: center; margin-bottom: 2.5rem; }
+  .section-header h2 { font-size: 2rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .section-header p { color: var(--text-muted); font-size: 1rem; margin: 0; }
+
+  .farms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .farm-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px var(--shadow);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .farm-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
+
+  .farm-card-header {
+    background: var(--card-accent);
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .farm-card-emoji { font-size: 3.5rem; line-height: 1; }
+  .farm-card-meta { text-align: right; }
+  .farm-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
+  .rating-num { font-weight: 700; color: #fff; font-size: 0.9rem; }
+  .rating-count { color: rgba(255,255,255,0.65); font-size: 0.8rem; }
+  .farm-certs { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+
+  .farm-card-body { padding: 1.25rem 1.5rem; flex: 1; }
+  .farm-name { font-size: 1.3rem; color: var(--green-800); margin-bottom: 0.25rem; }
+  .farm-farmer { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+  .farm-location { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .farm-desc { font-size: 0.9rem; color: var(--text); margin-bottom: 1rem; }
+
+  .farm-info-row {
+    display: flex;
+    gap: 1rem;
+    background: var(--green-50);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+  }
+  .farm-info-item { flex: 1; text-align: center; }
+  .info-label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.2rem; }
+  .info-value { display: block; font-size: 0.82rem; font-weight: 600; color: var(--green-800); }
+
+  .farm-card-footer { padding: 1rem 1.5rem 1.5rem; }
+  .products-preview { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+  .product-chip {
+    background: var(--cream-100);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+  .product-chip-more { background: var(--green-100); color: var(--green-700); font-weight: 600; }
+  .farm-cta { width: 100%; justify-content: center; }
+
+  /* ===== VALUES ===== */
+  .values-section {
+    background: var(--green-900);
+    padding: 3.5rem 0;
+  }
+  .values-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+  }
+  .value-item { text-align: center; color: rgba(255,255,255,0.8); }
+  .value-icon { font-size: 2rem; display: block; margin-bottom: 0.75rem; }
+  .value-item h4 { color: #fff; font-size: 1rem; margin-bottom: 0.4rem; }
+  .value-item p { font-size: 0.875rem; color: rgba(255,255,255,0.6); margin: 0; }
+
+  /* ===== FARMER CTA ===== */
+  .farmer-cta-section { padding: 4rem 0; }
+  .farmer-cta-card {
+    background: linear-gradient(135deg, var(--green-50) 0%, #fff 100%);
+    border: 1px solid var(--green-100);
+    border-radius: 20px;
+    padding: 3rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 3rem;
+    align-items: center;
+  }
+  .farmer-pill {
+    display: inline-block;
+    background: var(--green-100);
+    color: var(--green-800);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+  .farmer-cta-text h2 { font-size: 1.75rem; color: var(--green-800); margin-bottom: 0.75rem; }
+  .farmer-cta-text p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem; }
+  .farmer-benefits { list-style: none; padding: 0; margin: 0; }
+  .farmer-benefits li { padding: 0.2rem 0; font-size: 0.9rem; color: var(--green-700); font-weight: 500; }
+
+  .farmer-contact-box {
+    background: #fff;
+    border: 1px solid var(--green-100);
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    min-width: 220px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+  .contact-intro { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; }
+  .contact-phone, .contact-email { display: block; font-weight: 600; color: var(--green-700); font-size: 0.95rem; text-decoration: none; }
+  .contact-phone:hover, .contact-email:hover { color: var(--green-600); }
+  .contact-or { font-size: 0.8rem; color: var(--text-light); margin: 0.4rem 0; }
+  .contact-note { font-size: 0.78rem; color: var(--text-light); margin: 0.75rem 0 0; }
+
+  @media (max-width: 800px) {
+    .farms-grid { grid-template-columns: 1fr; }
+    .farmer-cta-card { grid-template-columns: 1fr; }
+    .farmer-contact-box { margin: 0 auto; }
+  }
+  @media (max-width: 500px) {
+    .farm-info-row { flex-direction: column; gap: 0.5rem; }
+    .farm-info-item { text-align: left; display: flex; justify-content: space-between; }
+  }
+</style>
