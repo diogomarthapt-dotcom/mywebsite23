@@ -1,4 +1,5 @@
 ---
+export const prerender = true;
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
@@ -33,9 +34,9 @@ import { quintas } from '../data/quintas';
         <a href="/como-funciona" class="btn btn-outline-white">Como Funciona</a>
       </div>
       <div class="hero-stats">
-        <div class="stat"><strong>2</strong><span>Quintas</span></div>
+        <div class="stat"><strong>4</strong><span>Quintas</span></div>
         <div class="stat-divider"></div>
-        <div class="stat"><strong>16+</strong><span>Produtos</span></div>
+        <div class="stat"><strong>30+</strong><span>Produtos</span></div>
         <div class="stat-divider"></div>
         <div class="stat"><strong>Cascais</strong><span>Região</span></div>
       </div>
@@ -183,8 +184,9 @@ import { quintas } from '../data/quintas';
           </ul>
         </div>
         <div class="farmer-cta-action">
+          <a href="/agricultor" class="btn btn-primary cta-big">Saber Mais &amp; Candidatar-me →</a>
           <div class="farmer-contact-box">
-            <p class="contact-intro">Fale connosco:</p>
+            <p class="contact-intro">Ou fale directamente:</p>
             <a href="tel:+351210000000" class="contact-phone">📞 +351 210 000 000</a>
             <p class="contact-or">ou</p>
             <a href="mailto:quintas@colheita.pt" class="contact-email">✉️ quintas@colheita.pt</a>
@@ -289,6 +291,7 @@ import { quintas } from '../data/quintas';
   .stat strong { display: block; font-size: 1.4rem; font-weight: 700; color: #fff; }
   .stat span { font-size: 0.8rem; opacity: 0.75; }
   .stat-divider { width: 1px; height: 2.5rem; background: rgba(255,255,255,0.25); }
+  .cta-big { margin-bottom: 1rem; width: 100%; justify-content: center; padding: 0.85rem; }
 
   /* ===== HOW TEASER ===== */
   .how-teaser {
@@ -329,7 +332,7 @@ import { quintas } from '../data/quintas';
 
   .farms-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1.5rem;
   }
 

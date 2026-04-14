@@ -1,4 +1,5 @@
 ---
+export const prerender = false;
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 ---
@@ -156,7 +157,7 @@ import Footer from '../components/Footer.astro';
         <button class="btn btn-primary confirm-btn" id="confirm-btn">
           Confirmar Encomenda →
         </button>
-        <p class="confirm-note">Ao confirmar, o agricultor recebe a sua encomenda e contacta-o para coordenar.</p>
+        <p class="confirm-note">Ao confirmar, o WhatsApp abre com a mensagem de encomenda pronta a enviar ao agricultor.</p>
       </div>
     </div>
   </div>
@@ -164,11 +165,11 @@ import Footer from '../components/Footer.astro';
   <!-- CONFIRMATION MODAL -->
   <div id="confirm-modal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box">
-      <div class="modal-icon">✅</div>
-      <h2 id="modal-title">Encomenda Recebida!</h2>
+      <div class="modal-icon">📲</div>
+      <h2 id="modal-title">WhatsApp Aberto!</h2>
       <p class="modal-msg" id="modal-msg"></p>
       <div class="modal-detail" id="modal-detail"></div>
-      <p class="modal-next">O agricultor irá contactar o número indicado em breve para confirmar a entrega.</p>
+      <p class="modal-next">Verifique o WhatsApp — a mensagem com a encomenda já está preenchida. Basta enviar ao agricultor!</p>
       <a href="/" class="btn btn-primary" style="width:100%;justify-content:center">Voltar ao Início</a>
     </div>
   </div>
@@ -212,7 +213,7 @@ import Footer from '../components/Footer.astro';
   }
   function fmt(n: number) { return '€' + n.toFixed(2).replace('.', ','); }
 
-  // ───── Delivery fee map (per quinta slug) ─────
+  // ───── Per-quinta config ─────
   const deliveryFees: Record<string, number> = {
     'quinta-da-serra': 3.50,
     'quinta-do-guincho': 3.00,
@@ -220,6 +221,10 @@ import Footer from '../components/Footer.astro';
   const minOrders: Record<string, number> = {
     'quinta-da-serra': 15,
     'quinta-do-guincho': 12,
+  };
+  const waPhones: Record<string, string> = {
+    'quinta-da-serra': '351912345678',
+    'quinta-do-guincho': '351963456789',
   };
 
   // ───── State ─────
@@ -347,45 +352,133 @@ import Footer from '../components/Footer.astro';
     }
   });
 
+  // ───── WhatsApp message builder ─────
+  function buildWhatsAppMessage(params: {
+    name: string; phone: string; quintaName: string;
+    items: CartItem[]; deliveryType: string;
+    address: string; postal: string; city: string; notes: string;
+    subtotal: number; deliveryFee: number; total: number;
+    orderId?: string;
+  }): string {
+    const today = new Date().toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+    const itemLines = params.items
+      .map(i => `  • ${i.emoji} ${i.name} ×${i.quantity} ${i.unit} — ${fmt(i.price * i.quantity)}`)
+      .join('\n');
+
+    const deliveryLine = params.deliveryType === 'pickup'
+      ? '🏪 *Recolha no Mercado de Cascais*'
+      : `🚴 *Entrega em:*\n  ${params.address}${params.postal ? ', ' + params.postal : ''}${params.city ? ' ' + params.city : ''}${params.notes ? '\n  📝 ' + params.notes : ''}`;
+
+    return [
+      `🌾 *Nova Encomenda — Colheita*`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      params.orderId ? `🔖 Ref: #${params.orderId.slice(0,8).toUpperCase()}` : '',
+      `📅 ${today}`,
+      ``,
+      `*Produtos:*`,
+      itemLines,
+      ``,
+      `💰 Subtotal: ${fmt(params.subtotal)}`,
+      params.deliveryType === 'delivery' ? `🚴 Entrega: ${fmt(params.deliveryFee)}` : `🏪 Recolha: Grátis`,
+      `*💶 Total: ${fmt(params.total)}*`,
+      ``,
+      deliveryLine,
+      ``,
+      `👤 *Cliente:* ${params.name}`,
+      `📱 *WhatsApp:* ${params.phone}`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `_Enviado via Colheita 🌾_`,
+    ].join('\n');
+  }
+
   // ───── Confirm order ─────
-  document.getElementById('confirm-btn')?.addEventListener('click', () => {
+  document.getElementById('confirm-btn')?.addEventListener('click', async () => {
     const name = (document.getElementById('name') as HTMLInputElement).value.trim();
     const phone = (document.getElementById('phone') as HTMLInputElement).value.trim();
+    const email = (document.getElementById('email') as HTMLInputElement)?.value.trim() ?? '';
 
+    // Validate required fields
+    let valid = true;
     if (!name) {
-      (document.getElementById('name') as HTMLInputElement).focus();
-      (document.getElementById('name') as HTMLInputElement).style.borderColor = 'var(--orange)';
-      return;
+      const el = document.getElementById('name') as HTMLInputElement;
+      el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
     }
     if (!phone) {
-      (document.getElementById('phone') as HTMLInputElement).focus();
-      (document.getElementById('phone') as HTMLInputElement).style.borderColor = 'var(--orange)';
-      return;
+      const el = document.getElementById('phone') as HTMLInputElement;
+      el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
     }
     if (deliveryType === 'delivery') {
       const addr = (document.getElementById('address') as HTMLInputElement).value.trim();
       if (!addr) {
-        (document.getElementById('address') as HTMLInputElement).focus();
-        (document.getElementById('address') as HTMLInputElement).style.borderColor = 'var(--orange)';
-        return;
+        const el = document.getElementById('address') as HTMLInputElement;
+        el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
       }
     }
+    if (!valid) return;
 
     const cart = getCart();
-    const quintaName = cart.items[0]?.quintaName ?? 'Quinta';
     const quintaSlug = cart.items[0]?.quintaSlug ?? '';
+    const quintaName = cart.items[0]?.quintaName ?? 'Quinta';
     const fee = deliveryFees[quintaSlug] ?? 3.50;
+    const waPhone = waPhones[quintaSlug] ?? '';
     const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal + (deliveryType === 'delivery' ? fee : 0);
 
-    // Show confirmation modal
+    const address = (document.getElementById('address') as HTMLInputElement)?.value.trim() ?? '';
+    const postal  = (document.getElementById('postal')  as HTMLInputElement)?.value.trim() ?? '';
+    const city    = (document.getElementById('city')    as HTMLInputElement)?.value.trim() ?? '';
+    const notes   = (document.getElementById('notes')   as HTMLInputElement)?.value.trim() ?? '';
+
+    // ── Disable button while saving ──
+    const confirmBtn = document.getElementById('confirm-btn') as HTMLButtonElement;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'A guardar…';
+
+    // ── 1. Save order to D1 database ──
+    let orderId = '';
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farm_slug: quintaSlug, farm_name: quintaName,
+          customer_name: name, customer_phone: phone,
+          customer_email: email || null,
+          delivery_type: deliveryType,
+          address: address || null, postal: postal || null,
+          city: city || null, notes: notes || null,
+          items: cart.items.map(i => ({
+            id: i.id, name: i.name, emoji: i.emoji,
+            quantity: i.quantity, price: i.price, unit: i.unit,
+          })),
+          subtotal, delivery_fee: deliveryType === 'delivery' ? fee : 0, total,
+        }),
+      });
+      const data = await res.json() as { ok?: boolean; id?: string; error?: string };
+      if (data.ok && data.id) orderId = data.id;
+    } catch {
+      // DB not yet configured — still proceed with WhatsApp
+    }
+
+    // ── 2. Build & open WhatsApp ──
+    const waMessage = buildWhatsAppMessage({
+      name, phone, quintaName,
+      items: cart.items,
+      deliveryType, address, postal, city, notes,
+      subtotal, deliveryFee: fee, total,
+      orderId,
+    });
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, '_blank');
+
+    // ── 3. Show confirmation modal ──
     const modal = document.getElementById('confirm-modal')!;
-    const msg = document.getElementById('modal-msg')!;
+    const msg   = document.getElementById('modal-msg')!;
     const detail = document.getElementById('modal-detail')!;
 
-    msg.textContent = `Obrigado, ${name}! A sua encomenda de ${quintaName} foi recebida com sucesso.`;
+    msg.textContent = `Obrigado, ${name}! O WhatsApp do agricultor foi aberto com a sua encomenda.`;
     detail.innerHTML = `
-      <div class="modal-row"><span>Encomenda</span><span>${cart.items.length} produto${cart.items.length > 1 ? 's' : ''}</span></div>
+      ${orderId ? `<div class="modal-row"><span>Nº Encomenda</span><span>#${orderId.slice(0,8).toUpperCase()}</span></div>` : ''}
+      <div class="modal-row"><span>Produtos</span><span>${cart.items.length} produto${cart.items.length > 1 ? 's' : ''}</span></div>
       <div class="modal-row"><span>Total</span><span>${fmt(total)}</span></div>
       <div class="modal-row"><span>Entrega</span><span>${deliveryType === 'pickup' ? 'Recolha no Mercado' : 'Domicílio'}</span></div>
       <div class="modal-row"><span>Contacto</span><span>${phone}</span></div>
