@@ -1,0 +1,562 @@
+---
+export const prerender = false;
+
+import { quintas, getQuinta } from '../../data/quintas';
+import type { Quinta } from '../../data/quintas';
+
+const { slug } = Astro.params;
+const quinta = getQuinta(slug ?? '') as Quinta | undefined;
+
+if (!quinta) {
+  return Astro.redirect('/');
+}
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard · {quinta.shortName} · Colheita</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body class="dash-body">
+
+  <!-- PIN GATE -->
+  <div id="pin-gate" class="pin-gate">
+    <div class="pin-box">
+      <div class="pin-logo">🌾 <strong>Colheita</strong></div>
+      <div class="pin-farm-emoji">{quinta.emoji}</div>
+      <h1>{quinta.shortName}</h1>
+      <p>Área reservada ao agricultor. Introduza o seu PIN de acesso.</p>
+      <div id="pin-error" class="pin-error" style="display:none">PIN incorrecto. Tente novamente.</div>
+      <input
+        id="pin-input"
+        type="password"
+        inputmode="numeric"
+        maxlength="4"
+        placeholder="····"
+        class="pin-input"
+        autofocus
+      />
+      <button id="pin-btn" class="btn btn-primary" style="width:100%;justify-content:center">
+        Entrar
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD (hidden until PIN verified) -->
+  <div id="dashboard" style="display:none">
+
+    <!-- HEADER -->
+    <header class="dash-header">
+      <div class="dash-header-inner">
+        <div class="dash-title">
+          <span class="dash-emoji">{quinta.emoji}</span>
+          <div>
+            <h1>{quinta.shortName}</h1>
+            <span class="dash-sub">{quinta.farmer} · {quinta.location}</span>
+          </div>
+        </div>
+        <div class="dash-header-actions">
+          <a href={`/quintas/${quinta.slug}`} class="btn btn-outline" target="_blank">
+            Ver Página Pública ↗
+          </a>
+          <button id="logout-btn" class="btn btn-outline">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="dash-layout container">
+
+      <!-- STATS BAR -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-card">
+          <strong id="stat-total">—</strong>
+          <span>Total de Encomendas</span>
+        </div>
+        <div class="stat-card stat-pending">
+          <strong id="stat-pending">—</strong>
+          <span>Por Confirmar</span>
+        </div>
+        <div class="stat-card stat-confirmed">
+          <strong id="stat-confirmed">—</strong>
+          <span>Confirmadas</span>
+        </div>
+        <div class="stat-card stat-revenue">
+          <strong id="stat-revenue">—</strong>
+          <span>Total em Vendas</span>
+        </div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="filter-tabs">
+        <button class="tab active" data-status="all">Todas</button>
+        <button class="tab" data-status="pending">Por Confirmar</button>
+        <button class="tab" data-status="confirmed">Confirmadas</button>
+        <button class="tab" data-status="delivered">Entregues</button>
+        <button class="tab" data-status="cancelled">Canceladas</button>
+      </div>
+
+      <!-- ORDERS LIST -->
+      <div id="orders-loading" class="orders-loading">
+        <div class="spinner"></div>
+        <p>A carregar encomendas…</p>
+      </div>
+
+      <div id="orders-empty" class="orders-empty" style="display:none">
+        <div class="empty-icon">📭</div>
+        <h3>Ainda não tem encomendas</h3>
+        <p>As encomendas aparecem aqui quando os clientes fizerem pedidos na plataforma.</p>
+      </div>
+
+      <div id="orders-list" class="orders-list" style="display:none"></div>
+    </div>
+  </div>
+
+</body>
+</html>
+
+<script define:vars={{ quintaSlug: quinta.slug, dashPin: quinta.dashPin, deliveryFee: quinta.deliveryFee }}>
+  // ── PIN gate ──────────────────────────────────────────────────────────────
+  const SESSION_KEY = `colheita_dash_${quintaSlug}`;
+
+  function isAuthenticated() {
+    return sessionStorage.getItem(SESSION_KEY) === dashPin;
+  }
+
+  function showDashboard() {
+    document.getElementById('pin-gate').style.display = 'none';
+    document.getElementById('dashboard').style.display = '';
+    loadOrders();
+  }
+
+  if (isAuthenticated()) {
+    showDashboard();
+  }
+
+  document.getElementById('pin-btn')?.addEventListener('click', attemptLogin);
+  document.getElementById('pin-input')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') attemptLogin();
+  });
+
+  function attemptLogin() {
+    const val = (document.getElementById('pin-input') as HTMLInputElement).value;
+    if (val === dashPin) {
+      sessionStorage.setItem(SESSION_KEY, dashPin);
+      showDashboard();
+    } else {
+      const err = document.getElementById('pin-error')!;
+      err.style.display = 'block';
+      (document.getElementById('pin-input') as HTMLInputElement).value = '';
+      (document.getElementById('pin-input') as HTMLInputElement).focus();
+      setTimeout(() => { err.style.display = 'none'; }, 3000);
+    }
+  }
+
+  document.getElementById('logout-btn')?.addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    location.reload();
+  });
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+  interface OrderItem { emoji: string; name: string; quantity: number; price: number; unit: string; }
+  interface Order {
+    id: string; customer_name: string; customer_phone: string;
+    delivery_type: string; address: string | null; postal: string | null; city: string | null;
+    items: OrderItem[]; subtotal: number; delivery_fee: number; total: number;
+    status: OrderStatus; created_at: string;
+  }
+
+  let allOrders: Order[] = [];
+  let currentFilter: string = 'all';
+
+  async function loadOrders() {
+    const pin = sessionStorage.getItem(SESSION_KEY) ?? '';
+    try {
+      const res = await fetch(`/api/orders/${quintaSlug}?pin=${pin}`);
+      const data = await res.json() as { orders?: Order[]; error?: string };
+      if (!res.ok || !data.orders) throw new Error(data.error ?? 'Erro');
+      allOrders = data.orders;
+      renderStats();
+      renderOrders();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('orders-loading')!.innerHTML =
+        '<p style="color:var(--orange)">Erro ao carregar encomendas. Recarregue a página.</p>';
+    }
+  }
+
+  function fmt(n: number) { return '€' + n.toFixed(2).replace('.', ','); }
+  function fmtDate(s: string) {
+    return new Date(s).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderStats() {
+    const total = allOrders.length;
+    const pending   = allOrders.filter(o => o.status === 'pending').length;
+    const confirmed = allOrders.filter(o => o.status === 'confirmed').length;
+    const revenue   = allOrders
+      .filter(o => o.status !== 'cancelled')
+      .reduce((s, o) => s + o.total, 0);
+
+    (document.getElementById('stat-total') as HTMLElement).textContent = String(total);
+    (document.getElementById('stat-pending') as HTMLElement).textContent = String(pending);
+    (document.getElementById('stat-confirmed') as HTMLElement).textContent = String(confirmed);
+    (document.getElementById('stat-revenue') as HTMLElement).textContent = fmt(revenue);
+  }
+
+  function renderOrders() {
+    const loading = document.getElementById('orders-loading')!;
+    const empty   = document.getElementById('orders-empty')!;
+    const list    = document.getElementById('orders-list')!;
+
+    loading.style.display = 'none';
+
+    const filtered = currentFilter === 'all'
+      ? allOrders
+      : allOrders.filter(o => o.status === currentFilter);
+
+    if (filtered.length === 0) {
+      list.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+
+    empty.style.display = 'none';
+    list.style.display = '';
+
+    const statusLabel: Record<string, string> = {
+      pending:   'Por Confirmar',
+      confirmed: 'Confirmada',
+      delivered: 'Entregue',
+      cancelled: 'Cancelada',
+    };
+    const statusClass: Record<string, string> = {
+      pending:   'status-pending',
+      confirmed: 'status-confirmed',
+      delivered: 'status-delivered',
+      cancelled: 'status-cancelled',
+    };
+
+    list.innerHTML = filtered.map(order => `
+      <div class="order-card" data-id="${order.id}" data-status="${order.status}">
+        <div class="order-card-header">
+          <div class="order-header-left">
+            <span class="order-id">#${order.id.slice(0, 8).toUpperCase()}</span>
+            <span class="order-date">${fmtDate(order.created_at)}</span>
+          </div>
+          <span class="order-status ${statusClass[order.status] ?? ''}">${statusLabel[order.status] ?? order.status}</span>
+        </div>
+
+        <div class="order-body">
+          <div class="order-customer">
+            <span>👤 <strong>${order.customer_name}</strong></span>
+            <a href="https://wa.me/${order.customer_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${order.customer_name}! Estou a confirmar a sua encomenda Colheita #${order.id.slice(0,8).toUpperCase()}.`)}"
+               target="_blank" class="wa-btn">
+              📱 ${order.customer_phone}
+            </a>
+          </div>
+
+          <div class="order-delivery">
+            ${order.delivery_type === 'pickup'
+              ? '🏪 <span>Recolha no Mercado</span>'
+              : `🚴 <span>Entrega: ${[order.address, order.postal, order.city].filter(Boolean).join(', ')}</span>`
+            }
+          </div>
+
+          <ul class="order-items">
+            ${order.items.map(i => `
+              <li>${i.emoji ?? ''} ${i.name} <span class="item-qty">×${i.quantity} ${i.unit}</span>
+                  <span class="item-price">${fmt(i.price * i.quantity)}</span>
+              </li>
+            `).join('')}
+          </ul>
+
+          <div class="order-totals">
+            <span>Subtotal ${fmt(order.subtotal)}</span>
+            ${order.delivery_type === 'delivery' ? `<span>Entrega ${fmt(order.delivery_fee)}</span>` : ''}
+            <strong>Total ${fmt(order.total)}</strong>
+          </div>
+        </div>
+
+        ${order.status === 'pending' ? `
+        <div class="order-actions">
+          <button class="btn btn-primary action-btn" data-action="confirmed" data-id="${order.id}">✅ Confirmar</button>
+          <button class="btn btn-outline action-btn" style="color:var(--orange);border-color:var(--orange)" data-action="cancelled" data-id="${order.id}">✕ Cancelar</button>
+        </div>` : ''}
+
+        ${order.status === 'confirmed' ? `
+        <div class="order-actions">
+          <button class="btn btn-primary action-btn" data-action="delivered" data-id="${order.id}">📦 Marcar como Entregue</button>
+        </div>` : ''}
+      </div>
+    `).join('');
+
+    // Action buttons
+    list.querySelectorAll('.action-btn').forEach(btn => {
+      (btn as HTMLButtonElement).addEventListener('click', async () => {
+        const id     = (btn as HTMLButtonElement).dataset.id!;
+        const action = (btn as HTMLButtonElement).dataset.action!;
+        await updateOrderStatus(id, action as OrderStatus);
+      });
+    });
+  }
+
+  async function updateOrderStatus(orderId: string, status: OrderStatus) {
+    const pin = sessionStorage.getItem(SESSION_KEY) ?? '';
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, pin, farm_slug: quintaSlug }),
+      });
+      if (!res.ok) throw new Error('Erro ao actualizar');
+      // Update locally
+      const order = allOrders.find(o => o.id === orderId);
+      if (order) order.status = status;
+      renderStats();
+      renderOrders();
+    } catch (err) {
+      alert('Erro ao actualizar estado. Tente novamente.');
+    }
+  }
+
+  // ── Filter tabs ───────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentFilter = (tab as HTMLButtonElement).dataset.status ?? 'all';
+      renderOrders();
+    });
+  });
+</script>
+
+<style>
+  .dash-body { background: var(--cream-100); min-height: 100vh; }
+
+  /* ── PIN GATE ── */
+  .pin-gate {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--green-800), var(--green-600));
+  }
+  .pin-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .pin-logo { font-size: 1.2rem; font-weight: 700; color: var(--green-800); margin-bottom: 1.5rem; }
+  .pin-farm-emoji { font-size: 3rem; margin-bottom: 0.5rem; }
+  .pin-box h1 { font-size: 1.4rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .pin-box p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+  .pin-error {
+    background: #fff5f5; border: 1px solid #fecaca;
+    color: #dc2626; border-radius: 8px;
+    padding: 0.5rem; font-size: 0.82rem; margin-bottom: 0.75rem;
+  }
+  .pin-input {
+    display: block; width: 100%;
+    border: 2px solid var(--border); border-radius: 10px;
+    padding: 0.85rem; font-size: 1.6rem; font-family: inherit;
+    text-align: center; letter-spacing: 0.5em;
+    margin-bottom: 1rem; outline: none;
+    transition: border-color 0.15s;
+  }
+  .pin-input:focus { border-color: var(--green-500); }
+
+  /* ── DASH HEADER ── */
+  .dash-header {
+    background: var(--green-800);
+    color: #fff;
+    padding: 0 1.25rem;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .dash-header-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center;
+    justify-content: space-between;
+    height: 64px; gap: 1rem;
+  }
+  .dash-title { display: flex; align-items: center; gap: 0.75rem; }
+  .dash-emoji { font-size: 1.75rem; }
+  .dash-title h1 { font-size: 1.1rem; color: #fff; margin: 0; }
+  .dash-sub { font-size: 0.78rem; color: rgba(255,255,255,0.65); }
+  .dash-header-actions { display: flex; gap: 0.5rem; }
+  .dash-header-actions .btn-outline {
+    color: rgba(255,255,255,0.85);
+    border-color: rgba(255,255,255,0.4);
+    font-size: 0.82rem; padding: 0.4rem 0.9rem;
+  }
+  .dash-header-actions .btn-outline:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+
+  /* ── LAYOUT ── */
+  .dash-layout { padding: 2rem 1.25rem 4rem; }
+
+  /* ── STATS ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    text-align: center;
+  }
+  .stat-card strong { display: block; font-size: 1.8rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .stat-card span { font-size: 0.78rem; color: var(--text-muted); }
+  .stat-pending strong   { color: var(--orange); }
+  .stat-confirmed strong { color: var(--green-600); }
+  .stat-revenue strong   { color: var(--green-800); }
+
+  /* ── FILTER TABS ── */
+  .filter-tabs {
+    display: flex; gap: 0.35rem; flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+  .tab {
+    padding: 0.4rem 0.95rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+  }
+  .tab.active, .tab:hover {
+    background: var(--green-800);
+    border-color: var(--green-800);
+    color: #fff;
+  }
+
+  /* ── LOADING / EMPTY ── */
+  .orders-loading { display: flex; flex-direction: column; align-items: center; padding: 4rem; gap: 1rem; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green-600);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .orders-loading p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+
+  .orders-empty {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4rem 2rem; text-align: center;
+    background: #fff; border: 1px solid var(--border); border-radius: 16px;
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .orders-empty h3 { font-size: 1.2rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .orders-empty p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+
+  /* ── ORDER CARDS ── */
+  .orders-list { display: flex; flex-direction: column; gap: 1rem; }
+
+  .order-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+  }
+  .order-card:hover { box-shadow: 0 4px 16px var(--shadow); }
+
+  .order-card[data-status="pending"]   { border-left: 4px solid var(--orange); }
+  .order-card[data-status="confirmed"] { border-left: 4px solid var(--green-500); }
+  .order-card[data-status="delivered"] { border-left: 4px solid var(--green-300); }
+  .order-card[data-status="cancelled"] { border-left: 4px solid #d1d5db; opacity: 0.65; }
+
+  .order-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--cream-100);
+  }
+  .order-header-left { display: flex; align-items: center; gap: 0.75rem; }
+  .order-id { font-size: 0.82rem; font-weight: 700; font-family: monospace; color: var(--text); }
+  .order-date { font-size: 0.78rem; color: var(--text-muted); }
+
+  .order-status {
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0.25rem 0.7rem; border-radius: 999px;
+  }
+  .status-pending   { background: var(--orange-50);  color: var(--orange); }
+  .status-confirmed { background: var(--green-100);  color: var(--green-700); }
+  .status-delivered { background: #f0fdf4;            color: #16a34a; }
+  .status-cancelled { background: #f3f4f6;            color: #9ca3af; }
+
+  .order-body { padding: 1rem 1.25rem; }
+
+  .order-customer {
+    display: flex; align-items: center; gap: 0.75rem;
+    flex-wrap: wrap; margin-bottom: 0.5rem;
+  }
+  .order-customer span { font-size: 0.9rem; }
+  .wa-btn {
+    font-size: 0.82rem; color: #16a34a; font-weight: 500;
+    text-decoration: none; background: #f0fdf4;
+    border-radius: 6px; padding: 0.2rem 0.6rem;
+  }
+  .wa-btn:hover { background: #dcfce7; color: #16a34a; }
+
+  .order-delivery { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+
+  .order-items {
+    list-style: none; padding: 0; margin: 0 0 0.75rem;
+    border-top: 1px dashed var(--border); padding-top: 0.65rem;
+  }
+  .order-items li {
+    display: flex; align-items: baseline; gap: 0.35rem;
+    font-size: 0.875rem; padding: 0.2rem 0;
+    color: var(--text);
+  }
+  .item-qty { color: var(--text-muted); font-size: 0.78rem; flex: 1; }
+  .item-price { font-weight: 600; color: var(--green-800); margin-left: auto; }
+
+  .order-totals {
+    display: flex; gap: 1rem; flex-wrap: wrap;
+    font-size: 0.82rem; color: var(--text-muted);
+    border-top: 1px solid var(--border); padding-top: 0.65rem;
+  }
+  .order-totals strong { color: var(--green-800); font-size: 0.95rem; margin-left: auto; }
+
+  .order-actions {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--cream-100);
+    display: flex; gap: 0.5rem;
+  }
+  .action-btn { font-size: 0.85rem; padding: 0.45rem 1rem; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .dash-header-actions .btn-outline:first-child { display: none; }
+  }
+  @media (max-width: 400px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+  }
+</style>

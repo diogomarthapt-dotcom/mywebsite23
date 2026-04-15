@@ -1,0 +1,666 @@
+---
+export const prerender = true;
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { quintas, getQuinta } from '../../data/quintas';
+import type { Quinta } from '../../data/quintas';
+
+export async function getStaticPaths() {
+  return quintas.map((q) => ({ params: { slug: q.slug } }));
+}
+
+const { slug } = Astro.params;
+const quinta = getQuinta(slug) as Quinta;
+const availableProducts = quinta.products.filter((p) => p.available);
+const unavailableProducts = quinta.products.filter((p) => !p.available);
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{quinta.name} · Colheita</title>
+  <meta name="description" content={quinta.description} />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <Header />
+
+  <!-- FARM HEADER -->
+  <div class="farm-hero" style={`background: linear-gradient(135deg, ${quinta.bgColor} 0%, ${quinta.accentColor} 100%)`}>
+    <div class="container farm-hero-inner">
+      <a href="/" class="back-link">← Todas as Quintas</a>
+      <div class="farm-hero-content">
+        <div class="farm-emoji-large">{quinta.emoji}</div>
+        <div class="farm-hero-info">
+          <div class="farm-certs-row">
+            {quinta.certifications.map((cert) => (
+              <span class="badge badge-dark">{cert}</span>
+            ))}
+          </div>
+          <h1 class="farm-hero-name">{quinta.name}</h1>
+          <div class="farm-hero-sub">
+            <span>👨‍🌾 {quinta.farmer}</span>
+            <span>·</span>
+            <span>📍 {quinta.location}</span>
+          </div>
+          <div class="farm-hero-rating">
+            <span class="stars">★★★★★</span>
+            <strong>{quinta.rating}</strong>
+            <span>({quinta.reviewCount} avaliações)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DELIVERY INFO CARDS -->
+      <div class="delivery-cards">
+        <div class="delivery-card">
+          <span class="delivery-icon">🏪</span>
+          <div>
+            <strong>Recolha Gratuita</strong>
+            <p>{quinta.pickupInfo}</p>
+          </div>
+        </div>
+        <div class="delivery-card">
+          <span class="delivery-icon">🚴</span>
+          <div>
+            <strong>Entrega ao Domicílio</strong>
+            <p>+€{quinta.deliveryFee.toFixed(2)} · {quinta.deliveryZones.slice(0, 3).join(', ')}{quinta.deliveryZones.length > 3 ? ` +${quinta.deliveryZones.length - 3} zonas` : ''}</p>
+          </div>
+        </div>
+        <div class="delivery-card">
+          <span class="delivery-icon">💶</span>
+          <div>
+            <strong>Encomenda Mínima</strong>
+            <p>€{quinta.minOrder} · Pagamento na entrega</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-layout container">
+    <!-- PRODUCTS AREA -->
+    <main class="products-area">
+      <!-- About -->
+      <section class="about-section">
+        <h2>Sobre a Quinta</h2>
+        <p>{quinta.longDescription}</p>
+        <a href={`tel:${quinta.phone}`} class="phone-link">📞 {quinta.phone}</a>
+      </section>
+
+      <!-- Available products -->
+      <section>
+        <div class="products-section-header">
+          <h2>Produtos Disponíveis</h2>
+          <span class="products-count">{availableProducts.length} produtos</span>
+        </div>
+        <div class="products-grid">
+          {availableProducts.map((product) => (
+            <div
+              class="product-card"
+              data-id={`${quinta.slug}--${product.id}`}
+              data-quinta-slug={quinta.slug}
+              data-quinta-name={quinta.shortName}
+              data-product-id={product.id}
+              data-name={product.name}
+              data-emoji={product.emoji}
+              data-price={product.price}
+              data-unit={product.unit}
+            >
+              <div class="product-emoji">{product.emoji}</div>
+              <div class="product-body">
+                <div class="product-top">
+                  <h3 class="product-name">{product.name}</h3>
+                  {product.badge && <span class="badge badge-green">{product.badge}</span>}
+                </div>
+                <p class="product-desc">{product.description}</p>
+              </div>
+              <div class="product-footer">
+                <div class="product-price">
+                  <span class="price-amount">€{product.price.toFixed(2)}</span>
+                  <span class="price-unit">/{product.unit}</span>
+                </div>
+                <div class="product-actions">
+                  <button class="qty-btn qty-minus" aria-label="Diminuir" style="display:none">−</button>
+                  <span class="qty-display" style="display:none">1</span>
+                  <button class="btn btn-primary add-btn" data-id={`${quinta.slug}--${product.id}`}>
+                    + Adicionar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Unavailable products -->
+      {unavailableProducts.length > 0 && (
+        <section class="unavailable-section">
+          <h3>Brevemente Disponível</h3>
+          <div class="products-grid">
+            {unavailableProducts.map((product) => (
+              <div class="product-card product-card-unavailable">
+                <div class="product-emoji">{product.emoji}</div>
+                <div class="product-body">
+                  <div class="product-top">
+                    <h3 class="product-name">{product.name}</h3>
+                    <span class="badge" style="background:#e5e7eb;color:#666">Esgotado</span>
+                  </div>
+                  <p class="product-desc">{product.description}</p>
+                </div>
+                <div class="product-footer">
+                  <div class="product-price">
+                    <span class="price-amount">€{product.price.toFixed(2)}</span>
+                    <span class="price-unit">/{product.unit}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+
+    <!-- CART SIDEBAR -->
+    <aside class="cart-sidebar">
+      <div class="cart-widget" id="cart-widget">
+        <div class="cart-widget-header">
+          <h3>🛒 O Seu Carrinho</h3>
+          <span class="cart-quinta-tag">{quinta.shortName}</span>
+        </div>
+
+        <div id="cart-empty" class="cart-empty">
+          <p>Ainda não adicionou nenhum produto.</p>
+          <p class="cart-empty-hint">Clique em "+ Adicionar" nos produtos que quer encomendar.</p>
+        </div>
+
+        <div id="cart-items" style="display:none">
+          <ul class="cart-list" id="cart-list"></ul>
+          <div class="cart-summary">
+            <div class="cart-row">
+              <span>Subtotal</span>
+              <span id="cart-subtotal">€0,00</span>
+            </div>
+            <div class="cart-row cart-row-muted">
+              <span>Entrega (a confirmar)</span>
+              <span>+€{quinta.deliveryFee.toFixed(2)}</span>
+            </div>
+            <div class="cart-row cart-total">
+              <span>Total estimado</span>
+              <span id="cart-total-display">€0,00</span>
+            </div>
+          </div>
+          <a href="/carrinho" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem;">
+            Confirmar Encomenda →
+          </a>
+          <p class="cart-min-note" id="cart-min-note"></p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MOBILE CART BAR -->
+  <div class="mobile-cart-bar" id="mobile-cart-bar" style="display:none">
+    <div class="mobile-cart-info">
+      <span id="mobile-cart-count">0 itens</span>
+      <strong id="mobile-cart-total">€0,00</strong>
+    </div>
+    <a href="/carrinho" class="btn btn-primary">Ver Carrinho →</a>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+  <Footer />
+</body>
+</html>
+
+<script define:vars={{ quintaSlug: quinta.slug, quintaShortName: quinta.shortName, deliveryFee: quinta.deliveryFee, minOrder: quinta.minOrder }}>
+  // ───── Cart helpers ─────
+  function getCart() {
+    try { return JSON.parse(localStorage.getItem('colheita_cart') || '{"items":[]}'); }
+    catch (_) { return { items: [] }; }
+  }
+  function saveCart(cart) {
+    localStorage.setItem('colheita_cart', JSON.stringify(cart));
+    document.dispatchEvent(new CustomEvent('colheita:cartUpdated'));
+  }
+  function addToCart(item) {
+    const cart = getCart();
+    const existing = cart.items.find(i => i.id === item.id);
+    if (existing) { existing.quantity += 1; }
+    else { cart.items.push({ ...item, quantity: 1 }); }
+    saveCart(cart);
+  }
+  function setQuantity(itemId, qty) {
+    const cart = getCart();
+    const item = cart.items.find(i => i.id === itemId);
+    if (!item) return;
+    if (qty <= 0) { cart.items = cart.items.filter(i => i.id !== itemId); }
+    else { item.quantity = qty; }
+    saveCart(cart);
+  }
+  function getItemQty(itemId) {
+    const cart = getCart();
+    const item = cart.items.find(i => i.id === itemId);
+    return item ? item.quantity : 0;
+  }
+  function cartSubtotal(items) {
+    return items.reduce((s, i) => s + i.price * i.quantity, 0);
+  }
+  function fmt(n) { return '€' + n.toFixed(2).replace('.', ','); }
+
+  // ───── Add to cart buttons ─────
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const card = document.querySelector(`.product-card[data-id="${id}"]`);
+      if (!card) return;
+      addToCart({
+        id,
+        quintaSlug: card.dataset.quintaSlug,
+        quintaName: card.dataset.quintaName,
+        productId: card.dataset.productId,
+        name: card.dataset.name,
+        emoji: card.dataset.emoji,
+        price: parseFloat(card.dataset.price),
+        unit: card.dataset.unit,
+      });
+      showToast(`${card.dataset.emoji} ${card.dataset.name} adicionado!`);
+      updateProductCard(id);
+      renderSidebar();
+    });
+  });
+
+  // ───── Qty buttons (delegated) ─────
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.qty-minus, .qty-plus');
+    if (!btn) return;
+    const card = btn.closest('.product-card');
+    if (!card) return;
+    const id = card.dataset.id;
+    const current = getItemQty(id);
+    if (btn.classList.contains('qty-minus')) {
+      setQuantity(id, current - 1);
+    } else {
+      setQuantity(id, current + 1);
+    }
+    updateProductCard(id);
+    renderSidebar();
+  });
+
+  function updateProductCard(id) {
+    const card = document.querySelector(`.product-card[data-id="${id}"]`);
+    if (!card) return;
+    const qty = getItemQty(id);
+    const addBtn = card.querySelector('.add-btn');
+    const minusBtn = card.querySelector('.qty-minus');
+    const qtyDisplay = card.querySelector('.qty-display');
+    if (qty === 0) {
+      addBtn.style.display = '';
+      minusBtn.style.display = 'none';
+      qtyDisplay.style.display = 'none';
+    } else {
+      addBtn.textContent = '+';
+      addBtn.style.display = '';
+      minusBtn.style.display = '';
+      qtyDisplay.style.display = '';
+      qtyDisplay.textContent = String(qty);
+    }
+  }
+
+  // ───── Sidebar render ─────
+  function renderSidebar() {
+    const cart = getCart();
+    const items = cart.items.filter(i => i.quintaSlug === quintaSlug);
+    const isEmpty = document.getElementById('cart-empty');
+    const itemsDiv = document.getElementById('cart-items');
+    const cartList = document.getElementById('cart-list');
+    const subtotalEl = document.getElementById('cart-subtotal');
+    const totalEl = document.getElementById('cart-total-display');
+    const minNote = document.getElementById('cart-min-note');
+    const mobileBar = document.getElementById('mobile-cart-bar');
+    const mobileCount = document.getElementById('mobile-cart-count');
+    const mobileTotal = document.getElementById('mobile-cart-total');
+
+    if (items.length === 0) {
+      isEmpty.style.display = '';
+      itemsDiv.style.display = 'none';
+      mobileBar.style.display = 'none';
+      return;
+    }
+
+    isEmpty.style.display = 'none';
+    itemsDiv.style.display = '';
+
+    const subtotal = cartSubtotal(items);
+    const total = subtotal + deliveryFee;
+
+    subtotalEl.textContent = fmt(subtotal);
+    totalEl.textContent = fmt(total);
+
+    if (subtotal < minOrder) {
+      minNote.textContent = `Mínimo €${minOrder} — faltam ${fmt(minOrder - subtotal)}`;
+      minNote.style.color = 'var(--orange)';
+    } else {
+      minNote.textContent = '✓ Valor mínimo atingido';
+      minNote.style.color = 'var(--green-600)';
+    }
+
+    cartList.innerHTML = items.map(item => `
+      <li class="cart-item">
+        <span class="ci-emoji">${item.emoji}</span>
+        <span class="ci-name">${item.name}</span>
+        <span class="ci-qty">×${item.quantity}</span>
+        <span class="ci-price">${fmt(item.price * item.quantity)}</span>
+        <button class="ci-remove" data-id="${item.id}" aria-label="Remover">×</button>
+      </li>
+    `).join('');
+
+    cartList.querySelectorAll('.ci-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setQuantity(btn.dataset.id, 0);
+        updateProductCard(btn.dataset.id);
+        renderSidebar();
+      });
+    });
+
+    // Mobile bar
+    const totalItems = items.reduce((s, i) => s + i.quantity, 0);
+    mobileCount.textContent = `${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`;
+    mobileTotal.textContent = fmt(subtotal);
+    mobileBar.style.display = 'flex';
+  }
+
+  // ───── Toast ─────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('toast-show');
+    setTimeout(() => t.classList.remove('toast-show'), 2200);
+  }
+
+  // ───── Init ─────
+  // Restore cart state on product cards
+  document.querySelectorAll('.product-card[data-id]').forEach(card => {
+    updateProductCard(card.dataset.id);
+  });
+  renderSidebar();
+</script>
+
+<style>
+  /* ===== FARM HERO ===== */
+  .farm-hero { padding: 2rem 0 0; }
+  .farm-hero-inner { color: #fff; }
+  .back-link {
+    display: inline-block;
+    color: rgba(255,255,255,0.8);
+    font-size: 0.875rem;
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: #fff; }
+
+  .farm-hero-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .farm-emoji-large { font-size: 5rem; line-height: 1; flex-shrink: 0; }
+  .farm-hero-info { flex: 1; }
+  .farm-certs-row { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .farm-hero-name { font-size: clamp(1.5rem, 3vw, 2.2rem); color: #fff; margin-bottom: 0.4rem; }
+  .farm-hero-sub { font-size: 0.9rem; color: rgba(255,255,255,0.75); display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .farm-hero-rating { display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; color: rgba(255,255,255,0.85); }
+  .farm-hero-rating strong { color: #fff; }
+
+  .delivery-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+  .delivery-card {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    backdrop-filter: blur(4px);
+  }
+  .delivery-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .delivery-card strong { display: block; font-size: 0.875rem; color: #fff; margin-bottom: 0.2rem; }
+  .delivery-card p { font-size: 0.78rem; color: rgba(255,255,255,0.72); margin: 0; }
+
+  /* ===== PAGE LAYOUT ===== */
+  .page-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    padding-top: 2.5rem;
+    padding-bottom: 4rem;
+    align-items: start;
+  }
+
+  /* ===== ABOUT SECTION ===== */
+  .about-section {
+    background: var(--green-50);
+    border: 1px solid var(--green-100);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .about-section h2 { font-size: 1.1rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .about-section p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .phone-link { font-size: 0.9rem; color: var(--green-700); font-weight: 600; text-decoration: none; }
+  .phone-link:hover { color: var(--green-600); }
+
+  /* ===== PRODUCTS ===== */
+  .products-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .products-section-header h2 { font-size: 1.4rem; color: var(--green-800); margin: 0; }
+  .products-count {
+    font-size: 0.8rem;
+    background: var(--green-100);
+    color: var(--green-700);
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .product-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--shadow); }
+  .product-card-unavailable { opacity: 0.55; pointer-events: none; }
+
+  .product-emoji { font-size: 2.5rem; line-height: 1; }
+  .product-body { flex: 1; }
+  .product-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.35rem; }
+  .product-name { font-size: 0.95rem; font-weight: 700; color: var(--text); margin: 0; }
+  .product-desc { font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  .product-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+  .product-price { line-height: 1.2; }
+  .price-amount { font-size: 1.1rem; font-weight: 700; color: var(--green-800); }
+  .price-unit { font-size: 0.78rem; color: var(--text-muted); }
+
+  .product-actions { display: flex; align-items: center; gap: 0.35rem; }
+  .qty-btn {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    border: 2px solid var(--green-300);
+    background: #fff;
+    color: var(--green-700);
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .qty-btn:hover { background: var(--green-50); }
+  .qty-display {
+    min-width: 1.5rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--green-800);
+  }
+  .add-btn { padding: 0.4rem 0.9rem; font-size: 0.82rem; white-space: nowrap; }
+
+  .unavailable-section h3 { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1rem; }
+
+  /* ===== CART SIDEBAR ===== */
+  .cart-sidebar { position: sticky; top: 80px; }
+  .cart-widget {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px var(--shadow);
+  }
+  .cart-widget-header {
+    background: var(--green-800);
+    color: #fff;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cart-widget-header h3 { font-size: 1rem; margin: 0; color: #fff; }
+  .cart-quinta-tag {
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+  }
+
+  .cart-empty { padding: 2rem 1.25rem; text-align: center; }
+  .cart-empty p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+  .cart-empty-hint { font-size: 0.8rem !important; color: var(--text-light) !important; }
+
+  #cart-items { padding: 1.25rem; }
+
+  .cart-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+  .cart-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+  }
+  .cart-item:last-child { border-bottom: none; }
+  .ci-emoji { font-size: 1.1rem; flex-shrink: 0; }
+  .ci-name { flex: 1; font-weight: 500; color: var(--text); }
+  .ci-qty { color: var(--text-muted); font-size: 0.8rem; }
+  .ci-price { font-weight: 600; color: var(--green-800); }
+  .ci-remove {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 0.1rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .ci-remove:hover { color: var(--orange); }
+
+  .cart-summary { background: var(--cream-100); border-radius: 10px; padding: 0.75rem; }
+  .cart-row { display: flex; justify-content: space-between; font-size: 0.875rem; padding: 0.2rem 0; }
+  .cart-row-muted { color: var(--text-muted); }
+  .cart-total { border-top: 1px solid var(--border); margin-top: 0.35rem; padding-top: 0.35rem; font-weight: 700; color: var(--green-800); }
+
+  .cart-min-note { font-size: 0.78rem; text-align: center; margin: 0.5rem 0 0; }
+
+  /* ===== MOBILE CART BAR ===== */
+  .mobile-cart-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: var(--green-800);
+    color: #fff;
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  }
+  .mobile-cart-info { display: flex; flex-direction: column; gap: 0.1rem; }
+  .mobile-cart-info span { font-size: 0.8rem; opacity: 0.8; }
+  .mobile-cart-info strong { font-size: 1.1rem; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--green-800);
+    color: #fff;
+    padding: 0.65rem 1.4rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 300;
+  }
+  .toast-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .page-layout { grid-template-columns: 1fr; }
+    .cart-sidebar { display: none; }
+    .delivery-cards { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .farm-hero-content { flex-direction: column; align-items: flex-start; }
+    .farm-emoji-large { font-size: 3.5rem; }
+    .products-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 420px) {
+    .products-grid { grid-template-columns: 1fr; }
+  }
+</style>

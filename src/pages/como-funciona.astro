@@ -1,0 +1,359 @@
+---
+export const prerender = true;
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Como Funciona · Colheita</title>
+  <meta name="description" content="Saiba como encomendar produtos frescos directamente dos agricultores de Cascais e Sintra." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <Header />
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>Como Funciona</h1>
+      <p>Três passos simples para ter produtos frescos da quinta na sua casa.</p>
+    </div>
+  </div>
+
+  <div class="container page-content">
+
+    <!-- FOR CONSUMERS -->
+    <section class="section">
+      <div class="section-label">Para Consumidores</div>
+      <h2>Da quinta ao seu lar em 3 passos</h2>
+
+      <div class="steps-list">
+        <div class="step-block">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Explore e Escolha</h3>
+            <p>
+              Navegue pelas quintas participantes e veja os produtos disponíveis esta semana.
+              Cada produto foi colhido há menos de 24 horas. Adicione ao carrinho o que precisar.
+            </p>
+            <div class="step-detail">
+              <span>✓ Ver produtos disponíveis hoje</span>
+              <span>✓ Preços directos do agricultor</span>
+              <span>✓ Sem compromisso até confirmar</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-connector">↓</div>
+
+        <div class="step-block">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Escolha Como Receber</h3>
+            <p>
+              Duas opções flexíveis consoante a sua preferência:
+            </p>
+            <div class="options-grid">
+              <div class="option-card">
+                <span class="option-icon">🏪</span>
+                <h4>Recolha Gratuita</h4>
+                <p>Levante no <strong>Mercado de Cascais</strong> nos dias de presença de cada quinta. Sem taxas adicionais.</p>
+                <ul>
+                  <li>Sábados 9h–13h</li>
+                  <li>Domingos (algumas quintas)</li>
+                  <li>Gratuito</li>
+                </ul>
+              </div>
+              <div class="option-card option-card-accent">
+                <span class="option-icon">🚴</span>
+                <h4>Entrega ao Domicílio</h4>
+                <p>Receba em casa, coordenado localmente. Taxa de entrega entre <strong>€2,50 e €3,50</strong> conforme zona.</p>
+                <ul>
+                  <li>Cascais, Estoril, Sintra</li>
+                  <li>Entrega no próprio dia ou no seguinte</li>
+                  <li>Confirmação por SMS/WhatsApp</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-connector">↓</div>
+
+        <div class="step-block">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Confirme e Receba</h3>
+            <p>
+              Preencha os seus contactos, indique o endereço (se entrega), e confirme a encomenda.
+              O agricultor recebe a encomenda e contacta-o para coordenar. Pagamento na entrega ou no levantamento.
+            </p>
+            <div class="step-detail">
+              <span>✓ Confirmação por WhatsApp ou SMS</span>
+              <span>✓ Pagamento em dinheiro ou MBWay</span>
+              <span>✓ Qualidade garantida pelo agricultor</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq-section">
+      <div class="section-label">Perguntas Frequentes</div>
+      <h2>Dúvidas Comuns</h2>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h4>Com que frequência há produtos disponíveis?</h4>
+          <p>As quintas actualizam a disponibilidade de produtos semanalmente. A maioria dos produtos está disponível de 4ª a domingo, com colheita feita na véspera ou no próprio dia da entrega.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Posso encomendar de mais do que uma quinta?</h4>
+          <p>Nesta fase piloto o carrinho suporta produtos de uma quinta de cada vez. Em breve iremos expandir para permitir encomendas combinadas.</p>
+        </div>
+        <div class="faq-item">
+          <h4>E se um produto não estiver disponível no dia?</h4>
+          <p>O agricultor contacta-o previamente se algum produto não estiver disponível, propondo uma substituição ou reembolso parcial da encomenda.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Qual o valor mínimo de encomenda?</h4>
+          <p>Cada quinta tem o seu mínimo (entre €12 e €15) para que a entrega seja economicamente viável. O valor é indicado na página de cada quinta.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Como funciona o pagamento?</h4>
+          <p>Pagamento no acto da entrega ou levantamento: dinheiro, MBWay ou Multibanco. Não é necessário pagamento antecipado.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Fazem entregas todos os dias?</h4>
+          <p>As entregas são feitas de 5ª a domingo. Ao encomendar, o agricultor confirma a data exacta de entrega via WhatsApp/SMS.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOR FARMERS -->
+    <section class="section farmer-section">
+      <div class="section-label">Para Agricultores</div>
+      <h2>Junte-se à Plataforma</h2>
+      <p class="farmer-intro">
+        A Colheita nasceu no Mercado de Cascais com o objectivo de ligar directamente agricultores locais aos consumidores.
+        Se é agricultor na região de Cascais/Sintra, esta plataforma foi pensada para si.
+      </p>
+
+      <div class="farmer-benefits-grid">
+        <div class="benefit-card">
+          <span class="benefit-icon">💶</span>
+          <h4>Receba Mais pelo seu Trabalho</h4>
+          <p>Venda directamente ao consumidor, sem intermediários nem comissões de grandes distribuidores. Defina os seus próprios preços.</p>
+        </div>
+        <div class="benefit-card">
+          <span class="benefit-icon">📱</span>
+          <h4>Gestão Simples</h4>
+          <p>Actualize a disponibilidade dos seus produtos via telemóvel. Receba as encomendas por WhatsApp ou por email, sem complicações técnicas.</p>
+        </div>
+        <div class="benefit-card">
+          <span class="benefit-icon">🤝</span>
+          <h4>Apoio na Fase Piloto</h4>
+          <p>Durante o projecto piloto, a nossa equipa ajuda na configuração do seu perfil e no arranque das primeiras encomendas. Sem custos iniciais.</p>
+        </div>
+        <div class="benefit-card">
+          <span class="benefit-icon">🚴</span>
+          <h4>Entregas Coordenadas</h4>
+          <p>Não precisa de se preocupar com a logística. A plataforma coordena os estafetas locais, simplificando a sua operação.</p>
+        </div>
+      </div>
+
+      <div class="farmer-contact-block">
+        <h3>Interessado? Fale connosco</h3>
+        <p>Estamos a recrutar quintas para a segunda vaga do piloto. Entre em contacto:</p>
+        <div class="contact-row">
+          <a href="tel:+351210000000" class="contact-item">
+            <span>📞</span>
+            <div>
+              <strong>+351 210 000 000</strong>
+              <span>Seg–Sex, 9h–18h</span>
+            </div>
+          </a>
+          <a href="mailto:quintas@colheita.pt" class="contact-item">
+            <span>✉️</span>
+            <div>
+              <strong>quintas@colheita.pt</strong>
+              <span>Resposta em 24h</span>
+            </div>
+          </a>
+          <div class="contact-item contact-item-plain">
+            <span>📍</span>
+            <div>
+              <strong>Mercado de Cascais</strong>
+              <span>Encontre-nos no mercado aos sábados</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <Footer />
+</body>
+</html>
+
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, var(--green-800) 0%, var(--green-600) 100%);
+    padding: 3.5rem 0 2.5rem;
+    color: #fff;
+    text-align: center;
+  }
+  .page-hero h1 { font-size: clamp(2rem, 4vw, 3rem); color: #fff; margin-bottom: 0.5rem; }
+  .page-hero p { color: rgba(255,255,255,0.8); font-size: 1.05rem; margin: 0; }
+
+  .page-content { padding: 3.5rem 1.25rem 1rem; }
+
+  .section { margin-bottom: 4rem; }
+
+  .section-label {
+    display: inline-block;
+    background: var(--green-100);
+    color: var(--green-800);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .section h2 { font-size: 1.8rem; color: var(--green-800); margin-bottom: 2rem; }
+
+  /* ===== STEPS ===== */
+  .steps-list { display: flex; flex-direction: column; gap: 0; }
+  .step-connector { text-align: center; font-size: 1.5rem; color: var(--green-300); padding: 0.5rem 0; }
+
+  .step-block {
+    display: flex;
+    gap: 1.5rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    align-items: flex-start;
+  }
+  .step-number {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--green-800);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-content { flex: 1; }
+  .step-content h3 { font-size: 1.2rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .step-content p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem; }
+
+  .step-detail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .step-detail span {
+    background: var(--green-50);
+    color: var(--green-700);
+    border-radius: 8px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .option-card {
+    background: var(--cream-100);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .option-card-accent {
+    background: var(--green-50);
+    border-color: var(--green-200, var(--green-300));
+  }
+  .option-icon { font-size: 1.75rem; display: block; margin-bottom: 0.5rem; }
+  .option-card h4 { font-size: 1rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .option-card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+  .option-card ul { padding-left: 1.1rem; margin: 0; }
+  .option-card li { font-size: 0.82rem; color: var(--text-muted); padding: 0.15rem 0; }
+
+  /* ===== FAQ ===== */
+  .faq-section { background: var(--cream-100); border-radius: 20px; padding: 2.5rem; }
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .faq-item { }
+  .faq-item h4 { font-size: 0.95rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .faq-item p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+
+  /* ===== FARMER SECTION ===== */
+  .farmer-intro { font-size: 1rem; color: var(--text-muted); max-width: 600px; margin-bottom: 2rem; }
+  .farmer-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .benefit-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+  .benefit-icon { font-size: 1.8rem; display: block; margin-bottom: 0.75rem; }
+  .benefit-card h4 { font-size: 0.95rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .benefit-card p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+
+  .farmer-contact-block {
+    background: var(--green-800);
+    border-radius: 16px;
+    padding: 2rem;
+    color: #fff;
+  }
+  .farmer-contact-block h3 { color: #fff; font-size: 1.3rem; margin-bottom: 0.4rem; }
+  .farmer-contact-block > p { color: rgba(255,255,255,0.75); margin-bottom: 1.5rem; }
+
+  .contact-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .contact-item:hover { background: rgba(255,255,255,0.18); }
+  .contact-item-plain { cursor: default; }
+  .contact-item-plain:hover { background: rgba(255,255,255,0.1); }
+  .contact-item > span { font-size: 1.5rem; flex-shrink: 0; }
+  .contact-item div { display: flex; flex-direction: column; gap: 0.15rem; }
+  .contact-item strong { display: block; font-size: 0.875rem; color: #fff; }
+  .contact-item span:not(:first-child) { font-size: 0.78rem; color: rgba(255,255,255,0.6); }
+
+  @media (max-width: 700px) {
+    .faq-grid { grid-template-columns: 1fr; }
+    .contact-row { grid-template-columns: 1fr; }
+    .options-grid { grid-template-columns: 1fr; }
+    .step-block { flex-direction: column; }
+    .faq-section { padding: 1.5rem; }
+  }
+</style>

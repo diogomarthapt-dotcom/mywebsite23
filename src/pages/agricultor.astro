@@ -1,0 +1,581 @@
+---
+export const prerender = true;
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Para Agricultores · Colheita</title>
+  <meta name="description" content="Venda os seus produtos directamente ao consumidor, sem intermediários, através da plataforma Colheita." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <Header />
+
+  <!-- HERO -->
+  <section class="ag-hero">
+    <div class="ag-hero-bg"></div>
+    <div class="container ag-hero-content">
+      <span class="ag-pill">Para Agricultores · Projecto Piloto</span>
+      <h1>A sua quinta.<br/>Os seus preços.<br/>Sem intermediários.</h1>
+      <p>
+        Venda directamente aos consumidores de Cascais e Sintra.
+        A Colheita trata das encomendas e da logística — você só tem de colher.
+      </p>
+      <a href="#registar" class="btn btn-orange btn-lg">Quero Aderir ao Piloto →</a>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="compare-section">
+    <div class="container">
+      <h2 class="section-title">Como é hoje vs. com a Colheita</h2>
+      <div class="compare-grid">
+        <div class="compare-col compare-before">
+          <div class="compare-header">
+            <span class="compare-icon">😓</span>
+            <h3>Como é hoje</h3>
+          </div>
+          <ul class="compare-list">
+            <li>❌ Vai ao mercado sem saber se vai vender tudo</li>
+            <li>❌ Distribuidores ficam com 30–50% do valor</li>
+            <li>❌ Produtos que sobram são desperdício</li>
+            <li>❌ Não conhece quem compra o seu produto</li>
+            <li>❌ Preço fixado por outros, não por si</li>
+          </ul>
+        </div>
+        <div class="compare-arrow">→</div>
+        <div class="compare-col compare-after">
+          <div class="compare-header">
+            <span class="compare-icon">🌾</span>
+            <h3>Com a Colheita</h3>
+          </div>
+          <ul class="compare-list">
+            <li>✅ Encomendas antecipadas — colhe só o necessário</li>
+            <li>✅ Recebe o valor total da venda, sem cortes</li>
+            <li>✅ Zero desperdício — só produz o que já vendeu</li>
+            <li>✅ Constrói uma relação directa com os seus clientes</li>
+            <li>✅ Você define os preços e a disponibilidade</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS FOR FARMERS -->
+  <section class="how-section">
+    <div class="container">
+      <h2 class="section-title">Como funciona para si</h2>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-step-num">1</div>
+          <div class="how-step-body">
+            <h3>Regista-se gratuitamente</h3>
+            <p>Enviamos-lhe um link para configurar o seu perfil com os seus produtos, preços e disponibilidade. Demora menos de 30 minutos.</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">2</div>
+          <div class="how-step-body">
+            <h3>Recebe encomendas no WhatsApp</h3>
+            <p>Quando um cliente encomendar, recebe uma mensagem no WhatsApp com a lista completa de produtos, morada de entrega e contacto. Aceita ou rejeita conforme a disponibilidade.</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">3</div>
+          <div class="how-step-body">
+            <h3>Entrega ou levantamento no mercado</h3>
+            <p>Pode entregar em casa do cliente (a taxa de entrega fica para si) ou combinar levantamento no Mercado de Cascais nos dias em que lá está.</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">4</div>
+          <div class="how-step-body">
+            <h3>Recebe o pagamento</h3>
+            <p>O cliente paga em dinheiro ou MBWay no momento da entrega. O dinheiro vai directamente para si — a Colheita não toca no pagamento nesta fase piloto.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NUMBERS -->
+  <section class="numbers-section">
+    <div class="container">
+      <div class="numbers-grid">
+        <div class="number-item">
+          <strong>€0</strong>
+          <span>Custo na fase piloto</span>
+        </div>
+        <div class="number-item">
+          <strong>0%</strong>
+          <span>Comissão sobre vendas</span>
+        </div>
+        <div class="number-item">
+          <strong>100%</strong>
+          <span>Do pagamento fica para si</span>
+        </div>
+        <div class="number-item">
+          <strong>24h</strong>
+          <span>Antecedência das encomendas</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIAL (fictional for pilot) -->
+  <section class="testimonial-section">
+    <div class="container">
+      <div class="testimonial-card">
+        <div class="testimonial-quote">"</div>
+        <blockquote>
+          Antes levava legumes para o mercado sem saber se vendia tudo. Agora recebo as encomendas na sexta-feira e colho só o que já está vendido no sábado de manhã. Zero desperdício e recebo mais por cada quilo.
+        </blockquote>
+        <div class="testimonial-author">
+          <span class="testimonial-emoji">🌿</span>
+          <div>
+            <strong>João Ferreira</strong>
+            <span>Quinta da Serra de Sintra · Almoçageme</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section">
+    <div class="container">
+      <h2 class="section-title">Perguntas Frequentes</h2>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h4>Tenho de ter computador ou site próprio?</h4>
+          <p>Não. Tudo funciona pelo telemóvel — recebe as encomendas no WhatsApp e actualiza a disponibilidade de produtos por mensagem ou via link simples.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Quantas horas por semana preciso?</h4>
+          <p>Menos de 1 hora por semana para gerir o perfil. As encomendas chegam ao WhatsApp — é igual a receber uma mensagem de um cliente habitual.</p>
+        </div>
+        <div class="faq-item">
+          <h4>E se não conseguir cumprir uma encomenda?</h4>
+          <p>Basta enviar mensagem ao cliente com antecedência. Sem penalizações. Na fase piloto somos flexíveis — o objectivo é encontrar um modelo que funcione para todos.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Posso definir zonas de entrega?</h4>
+          <p>Sim. Pode limitar a entrega às zonas que lhe convêm e indicar os dias disponíveis. Pode também optar apenas pelo levantamento no mercado.</p>
+        </div>
+        <div class="faq-item">
+          <h4>A plataforma vai ficar sempre grátis?</h4>
+          <p>Durante toda a fase piloto (mínimo 6 meses) não há qualquer custo. No futuro, se houver custos de plataforma, será uma comissão pequena e apenas sobre vendas efectuadas.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Posso sair quando quiser?</h4>
+          <p>Sim, sem qualquer compromisso. Pode pausar ou remover o seu perfil a qualquer momento, sem burocracia.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGISTRATION FORM -->
+  <section class="register-section" id="registar">
+    <div class="container">
+      <div class="register-card">
+        <div class="register-left">
+          <span class="register-pill">Fase Piloto — Vagas Limitadas</span>
+          <h2>Junte-se ao Piloto</h2>
+          <p>
+            Estamos a recrutar agricultores do Mercado de Cascais para a fase piloto.
+            Preencha os seus dados e entraremos em contacto em 24 horas.
+          </p>
+          <ul class="register-checklist">
+            <li>✓ Totalmente gratuito durante o piloto</li>
+            <li>✓ Apoio na configuração do seu perfil</li>
+            <li>✓ Pode sair quando quiser, sem compromissos</li>
+            <li>✓ Primeira formação presencial no Mercado de Cascais</li>
+          </ul>
+        </div>
+
+        <div class="register-right">
+          <form class="register-form" id="register-form" novalidate>
+            <div class="field-group">
+              <label for="r-name">O seu nome</label>
+              <input type="text" id="r-name" placeholder="Nome e apelido" required />
+            </div>
+            <div class="field-group">
+              <label for="r-quinta">Nome da quinta / exploração</label>
+              <input type="text" id="r-quinta" placeholder="Ex: Quinta dos Carvalhos" required />
+            </div>
+            <div class="field-group">
+              <label for="r-location">Localização</label>
+              <input type="text" id="r-location" placeholder="Ex: Alcabideche, Cascais" required />
+            </div>
+            <div class="field-group">
+              <label for="r-phone">Telemóvel (WhatsApp)</label>
+              <input type="tel" id="r-phone" placeholder="+351 9XX XXX XXX" required />
+            </div>
+            <div class="field-group">
+              <label for="r-products">Que produtos vende?</label>
+              <input type="text" id="r-products" placeholder="Ex: legumes, ovos, mel, frutas..." />
+            </div>
+            <div class="field-group">
+              <label for="r-market">Está no Mercado de Cascais?</label>
+              <select id="r-market">
+                <option value="sim">Sim, regularmente</option>
+                <option value="as-vezes">Às vezes</option>
+                <option value="nao">Não, mas estou próximo de Cascais</option>
+              </select>
+            </div>
+
+            <div id="form-error" class="form-error" style="display:none"></div>
+
+            <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;padding:0.85rem;font-size:1rem;">
+              Quero Aderir ao Piloto →
+            </button>
+            <p class="form-note">Ao enviar, o WhatsApp abre com a sua candidatura. Enviamos-lhe resposta em 24h.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUCCESS MODAL -->
+  <div id="success-modal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="modal-icon">📲</div>
+      <h2>WhatsApp Aberto!</h2>
+      <p>A sua candidatura foi preparada. Verifique o WhatsApp e envie a mensagem à equipa Colheita.</p>
+      <p class="modal-sub">Resposta garantida em 24 horas.</p>
+      <a href="/" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem">Ver a Plataforma</a>
+    </div>
+  </div>
+
+  <Footer />
+</body>
+</html>
+
+<script>
+  // Coordinator WhatsApp number
+  const COORDINATOR_WA = '351910000000';
+
+  document.getElementById('register-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const name     = (document.getElementById('r-name')     as HTMLInputElement).value.trim();
+    const quinta   = (document.getElementById('r-quinta')   as HTMLInputElement).value.trim();
+    const location = (document.getElementById('r-location') as HTMLInputElement).value.trim();
+    const phone    = (document.getElementById('r-phone')    as HTMLInputElement).value.trim();
+    const products = (document.getElementById('r-products') as HTMLInputElement).value.trim();
+    const market   = (document.getElementById('r-market')   as HTMLSelectElement).value;
+    const errorEl  = document.getElementById('form-error')!;
+
+    // Validate
+    if (!name || !quinta || !location || !phone) {
+      errorEl.textContent = 'Por favor preencha todos os campos obrigatórios.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    const marketText: Record<string, string> = {
+      'sim': 'Sim, regularmente',
+      'as-vezes': 'Às vezes',
+      'nao': 'Não (mas próximo de Cascais)',
+    };
+
+    const message = [
+      `🌾 *Candidatura Piloto — Colheita*`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `👤 *Nome:* ${name}`,
+      `🏡 *Quinta:* ${quinta}`,
+      `📍 *Localização:* ${location}`,
+      `📱 *Telemóvel:* ${phone}`,
+      products ? `🥕 *Produtos:* ${products}` : '',
+      `🏪 *Mercado de Cascais:* ${marketText[market] ?? market}`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `_Enviado via colheita.pt_`,
+    ].filter(Boolean).join('\n');
+
+    window.open(`https://wa.me/${COORDINATOR_WA}?text=${encodeURIComponent(message)}`, '_blank');
+
+    (document.getElementById('success-modal') as HTMLElement).style.display = 'flex';
+    (document.getElementById('register-form') as HTMLFormElement).reset();
+  });
+</script>
+
+<style>
+  /* ===== HERO ===== */
+  .ag-hero {
+    position: relative;
+    padding: 5rem 0 4rem;
+    overflow: hidden;
+    min-height: 480px;
+    display: flex;
+    align-items: center;
+  }
+  .ag-hero-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #7b3f00 0%, #c05621 50%, #e76f51 100%);
+    z-index: 0;
+  }
+  .ag-hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .ag-hero-content {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    max-width: 640px;
+  }
+  .ag-pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.9);
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.5rem;
+  }
+  .ag-hero-content h1 {
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    color: #fff;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.25rem;
+  }
+  .ag-hero-content p {
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 2rem;
+    line-height: 1.65;
+  }
+  .btn-lg { padding: 0.9rem 2rem; font-size: 1.05rem; }
+
+  /* ===== SHARED ===== */
+  .section-title {
+    font-size: 1.75rem;
+    color: var(--green-800);
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ===== COMPARE ===== */
+  .compare-section { padding: 4rem 0; background: var(--cream-100); }
+  .compare-grid {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .compare-col {
+    flex: 1;
+    border-radius: 16px;
+    padding: 1.75rem;
+    border: 2px solid;
+  }
+  .compare-before { background: #fff5f5; border-color: #fecaca; }
+  .compare-after  { background: var(--green-50); border-color: var(--green-300); }
+  .compare-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+  .compare-icon { font-size: 1.75rem; }
+  .compare-header h3 { font-size: 1.1rem; margin: 0; }
+  .compare-before h3 { color: #dc2626; }
+  .compare-after  h3 { color: var(--green-700); }
+  .compare-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .compare-list li { font-size: 0.9rem; line-height: 1.45; }
+  .compare-arrow { font-size: 2rem; color: var(--green-400); flex-shrink: 0; }
+
+  /* ===== HOW STEPS ===== */
+  .how-section { padding: 4rem 0; }
+  .how-steps { display: flex; flex-direction: column; gap: 1rem; max-width: 680px; margin: 0 auto; }
+  .how-step {
+    display: flex;
+    gap: 1.25rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+  .how-step-num {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--orange);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .how-step-body h3 { font-size: 1rem; color: var(--text); margin-bottom: 0.35rem; }
+  .how-step-body p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+
+  /* ===== NUMBERS ===== */
+  .numbers-section {
+    background: var(--green-900);
+    padding: 3rem 0;
+  }
+  .numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    text-align: center;
+  }
+  .number-item strong {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--orange-light);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.35rem;
+  }
+  .number-item span { font-size: 0.875rem; color: rgba(255,255,255,0.65); }
+
+  /* ===== TESTIMONIAL ===== */
+  .testimonial-section { padding: 4rem 0; background: var(--cream-100); }
+  .testimonial-card {
+    max-width: 680px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    position: relative;
+  }
+  .testimonial-quote {
+    font-size: 5rem;
+    color: var(--green-200, var(--green-300));
+    line-height: 0.6;
+    font-family: Georgia, serif;
+    margin-bottom: 1rem;
+    color: var(--green-100);
+    font-size: 6rem;
+  }
+  blockquote {
+    font-size: 1.05rem;
+    color: var(--text);
+    line-height: 1.7;
+    border: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    font-style: italic;
+  }
+  .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+  .testimonial-emoji { font-size: 2rem; }
+  .testimonial-author strong { display: block; font-size: 0.95rem; color: var(--text); }
+  .testimonial-author span { font-size: 0.82rem; color: var(--text-muted); }
+
+  /* ===== FAQ ===== */
+  .faq-section { padding: 4rem 0; }
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+  .faq-item { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .faq-item h4 { font-size: 0.95rem; color: var(--green-800); margin-bottom: 0.4rem; }
+  .faq-item p { font-size: 0.875rem; color: var(--text-muted); margin: 0; }
+
+  /* ===== REGISTER ===== */
+  .register-section { padding: 4rem 0; background: var(--green-50); }
+  .register-card {
+    background: #fff;
+    border: 1px solid var(--green-100);
+    border-radius: 20px;
+    padding: 3rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    box-shadow: 0 4px 24px var(--shadow);
+  }
+  .register-pill {
+    display: inline-block;
+    background: var(--orange-50);
+    color: var(--orange);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+  .register-left h2 { font-size: 1.75rem; color: var(--green-800); margin-bottom: 0.75rem; }
+  .register-left p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; }
+  .register-checklist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .register-checklist li { font-size: 0.9rem; color: var(--green-700); font-weight: 500; }
+
+  .register-form { display: flex; flex-direction: column; gap: 0; }
+  .field-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
+  .field-group label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+  .field-group input,
+  .field-group select {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-group input:focus,
+  .field-group select:focus { border-color: var(--orange); }
+
+  .form-error {
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.85rem;
+  }
+  .form-note { font-size: 0.75rem; color: var(--text-light); text-align: center; margin: 0.5rem 0 0; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    backdrop-filter: blur(3px);
+  }
+  .modal-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .modal-box h2 { font-size: 1.4rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .modal-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .modal-sub { font-size: 0.82rem !important; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .compare-grid { flex-direction: column; }
+    .compare-arrow { transform: rotate(90deg); }
+    .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+    .faq-grid { grid-template-columns: 1fr; }
+    .register-card { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 500px) {
+    .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+    .ag-hero { padding: 3.5rem 0 3rem; }
+  }
+</style>

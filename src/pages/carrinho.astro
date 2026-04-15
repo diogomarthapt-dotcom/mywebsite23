@@ -1,0 +1,749 @@
+---
+export const prerender = false;
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carrinho · Colheita</title>
+  <meta name="description" content="Reveja a sua encomenda e escolha como receber os seus produtos frescos." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <Header />
+
+  <div class="container page-layout">
+
+    <!-- LEFT COLUMN -->
+    <div class="checkout-main">
+      <h1 class="page-title">O Seu Carrinho</h1>
+
+      <!-- EMPTY STATE -->
+      <div id="empty-state" class="empty-state" style="display:none">
+        <div class="empty-icon">🛒</div>
+        <h2>O seu carrinho está vazio</h2>
+        <p>Visite uma das nossas quintas e adicione produtos frescos ao carrinho.</p>
+        <a href="/" class="btn btn-primary">Ver Quintas</a>
+      </div>
+
+      <!-- CART ITEMS -->
+      <div id="cart-content">
+        <div class="cart-section">
+          <div class="cart-section-header">
+            <h2 id="cart-quinta-name">A carregar...</h2>
+            <button id="clear-cart-btn" class="clear-btn">Limpar carrinho</button>
+          </div>
+          <ul class="cart-items-list" id="cart-items-list"></ul>
+        </div>
+
+        <!-- DELIVERY SELECTOR -->
+        <div class="delivery-section">
+          <h2>Como prefere receber?</h2>
+          <div class="delivery-options">
+            <label class="delivery-option" id="opt-pickup">
+              <input type="radio" name="delivery" value="pickup" checked />
+              <div class="delivery-option-content">
+                <div class="delivery-option-icon">🏪</div>
+                <div class="delivery-option-info">
+                  <strong>Recolha no Mercado de Cascais</strong>
+                  <p>Gratuito · Sábados e/ou Domingos de manhã</p>
+                </div>
+                <div class="delivery-option-price">Grátis</div>
+              </div>
+            </label>
+
+            <label class="delivery-option" id="opt-delivery">
+              <input type="radio" name="delivery" value="delivery" />
+              <div class="delivery-option-content">
+                <div class="delivery-option-icon">🚴</div>
+                <div class="delivery-option-info">
+                  <strong>Entrega ao Domicílio</strong>
+                  <p id="delivery-fee-label">Taxa de entrega · Cascais, Estoril e Sintra</p>
+                </div>
+                <div class="delivery-option-price" id="delivery-fee-display">+€3,50</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- ADDRESS (shown when delivery selected) -->
+          <div id="address-fields" class="address-fields" style="display:none">
+            <div class="field-group">
+              <label for="address">Morada completa</label>
+              <input type="text" id="address" placeholder="Rua, número, andar" required />
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label for="postal">Código Postal</label>
+                <input type="text" id="postal" placeholder="2750-000" maxlength="8" />
+              </div>
+              <div class="field-group">
+                <label for="city">Localidade</label>
+                <input type="text" id="city" placeholder="Cascais" />
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="notes">Notas para entrega (opcional)</label>
+              <input type="text" id="notes" placeholder="Ex: campainha 2º Dto, portão azul..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTACT FORM -->
+        <div class="contact-section">
+          <h2>Os seus contactos</h2>
+          <p class="contact-note">O agricultor irá contactar para confirmar a encomenda e combinará a entrega/recolha via WhatsApp ou SMS.</p>
+          <div class="contact-form">
+            <div class="field-row">
+              <div class="field-group">
+                <label for="name">Nome</label>
+                <input type="text" id="name" placeholder="O seu nome" required />
+              </div>
+              <div class="field-group">
+                <label for="phone">Telemóvel (WhatsApp)</label>
+                <input type="tel" id="phone" placeholder="+351 9XX XXX XXX" required />
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="email">Email (opcional)</label>
+              <input type="email" id="email" placeholder="nome@email.com" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: ORDER SUMMARY -->
+    <div class="order-summary" id="order-summary">
+      <div class="summary-card">
+        <h3>Resumo da Encomenda</h3>
+
+        <div class="summary-items" id="summary-items"></div>
+
+        <div class="summary-totals">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span id="summary-subtotal">€0,00</span>
+          </div>
+          <div class="summary-row" id="delivery-row">
+            <span>Entrega</span>
+            <span id="summary-delivery">Grátis</span>
+          </div>
+          <div class="summary-row summary-total">
+            <span>Total</span>
+            <span id="summary-total">€0,00</span>
+          </div>
+        </div>
+
+        <div class="payment-info">
+          <h4>Pagamento</h4>
+          <div class="payment-options">
+            <span class="payment-badge">💵 Dinheiro</span>
+            <span class="payment-badge">📱 MBWay</span>
+            <span class="payment-badge">💳 MB</span>
+          </div>
+          <p>Pagamento no acto da entrega ou levantamento. Sem pagamento antecipado.</p>
+        </div>
+
+        <div id="min-order-warning" class="min-warning" style="display:none">
+          <span>⚠️</span>
+          <span id="min-warning-text">Valor mínimo não atingido</span>
+        </div>
+
+        <button class="btn btn-primary confirm-btn" id="confirm-btn">
+          Confirmar Encomenda →
+        </button>
+        <p class="confirm-note">Ao confirmar, o WhatsApp abre com a mensagem de encomenda pronta a enviar ao agricultor.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRMATION MODAL -->
+  <div id="confirm-modal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <div class="modal-icon">📲</div>
+      <h2 id="modal-title">WhatsApp Aberto!</h2>
+      <p class="modal-msg" id="modal-msg"></p>
+      <div class="modal-detail" id="modal-detail"></div>
+      <p class="modal-next">Verifique o WhatsApp — a mensagem com a encomenda já está preenchida. Basta enviar ao agricultor!</p>
+      <a href="/" class="btn btn-primary" style="width:100%;justify-content:center">Voltar ao Início</a>
+    </div>
+  </div>
+
+  <Footer />
+</body>
+</html>
+
+<script>
+  // ───── Types ─────
+  interface CartItem {
+    id: string;
+    quintaSlug: string;
+    quintaName: string;
+    productId: string;
+    name: string;
+    emoji: string;
+    price: number;
+    unit: string;
+    quantity: number;
+  }
+  interface Cart { items: CartItem[]; }
+
+  // ───── Cart helpers ─────
+  function getCart(): Cart {
+    try { return JSON.parse(localStorage.getItem('colheita_cart') || '{"items":[]}'); }
+    catch (_) { return { items: [] }; }
+  }
+  function saveCart(cart: Cart) {
+    localStorage.setItem('colheita_cart', JSON.stringify(cart));
+    document.dispatchEvent(new CustomEvent('colheita:cartUpdated'));
+  }
+  function clearCart() { saveCart({ items: [] }); }
+  function setQty(id: string, qty: number) {
+    const cart = getCart();
+    const item = cart.items.find(i => i.id === id);
+    if (!item) return;
+    if (qty <= 0) cart.items = cart.items.filter(i => i.id !== id);
+    else item.quantity = qty;
+    saveCart(cart);
+  }
+  function fmt(n: number) { return '€' + n.toFixed(2).replace('.', ','); }
+
+  // ───── Per-quinta config ─────
+  const deliveryFees: Record<string, number> = {
+    'quinta-da-serra': 3.50,
+    'quinta-do-guincho': 3.00,
+  };
+  const minOrders: Record<string, number> = {
+    'quinta-da-serra': 15,
+    'quinta-do-guincho': 12,
+  };
+  const waPhones: Record<string, string> = {
+    'quinta-da-serra': '351912345678',
+    'quinta-do-guincho': '351963456789',
+  };
+
+  // ───── State ─────
+  let deliveryType: 'pickup' | 'delivery' = 'pickup';
+
+  // ───── Render ─────
+  function render() {
+    const cart = getCart();
+    const emptyState = document.getElementById('empty-state')!;
+    const cartContent = document.getElementById('cart-content')!;
+    const orderSummary = document.getElementById('order-summary')!;
+
+    if (cart.items.length === 0) {
+      emptyState.style.display = 'flex';
+      cartContent.style.display = 'none';
+      orderSummary.style.display = 'none';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+    cartContent.style.display = '';
+    orderSummary.style.display = '';
+
+    // Quinta name
+    const quintaSlug = cart.items[0]?.quintaSlug ?? '';
+    const quintaName = cart.items[0]?.quintaName ?? 'Quinta';
+    const fee = deliveryFees[quintaSlug] ?? 3.50;
+    const minOrder = minOrders[quintaSlug] ?? 15;
+
+    (document.getElementById('cart-quinta-name') as HTMLElement).textContent = quintaName;
+    (document.getElementById('delivery-fee-display') as HTMLElement).textContent = `+${fmt(fee)}`;
+    (document.getElementById('delivery-fee-label') as HTMLElement).textContent =
+      `Taxa de entrega ${fmt(fee)} · Cascais, Estoril e Sintra`;
+
+    // Cart items list
+    const list = document.getElementById('cart-items-list') as HTMLUListElement;
+    list.innerHTML = cart.items.map(item => `
+      <li class="cart-item-row">
+        <span class="ci-emoji">${item.emoji}</span>
+        <span class="ci-name">${item.name}<span class="ci-unit">/${item.unit}</span></span>
+        <div class="ci-qty-ctrl">
+          <button class="qty-btn" data-id="${item.id}" data-action="minus">−</button>
+          <span class="ci-qty-num">${item.quantity}</span>
+          <button class="qty-btn" data-id="${item.id}" data-action="plus">+</button>
+        </div>
+        <span class="ci-price">${fmt(item.price * item.quantity)}</span>
+        <button class="ci-remove" data-id="${item.id}" aria-label="Remover">×</button>
+      </li>
+    `).join('');
+
+    // Qty ctrl listeners
+    list.querySelectorAll('.qty-btn').forEach(btn => {
+      (btn as HTMLButtonElement).addEventListener('click', () => {
+        const id = (btn as HTMLButtonElement).dataset.id!;
+        const action = (btn as HTMLButtonElement).dataset.action;
+        const item = cart.items.find(i => i.id === id);
+        if (!item) return;
+        setQty(id, action === 'plus' ? item.quantity + 1 : item.quantity - 1);
+        render();
+      });
+    });
+    list.querySelectorAll('.ci-remove').forEach(btn => {
+      (btn as HTMLButtonElement).addEventListener('click', () => {
+        setQty((btn as HTMLButtonElement).dataset.id!, 0);
+        render();
+      });
+    });
+
+    // Totals
+    const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const delivery = deliveryType === 'delivery' ? fee : 0;
+    const total = subtotal + delivery;
+
+    (document.getElementById('summary-subtotal') as HTMLElement).textContent = fmt(subtotal);
+    (document.getElementById('summary-delivery') as HTMLElement).textContent =
+      deliveryType === 'delivery' ? `+${fmt(fee)}` : 'Grátis';
+    (document.getElementById('summary-total') as HTMLElement).textContent = fmt(total);
+
+    // Summary items
+    const si = document.getElementById('summary-items') as HTMLElement;
+    si.innerHTML = cart.items.map(item => `
+      <div class="summary-item">
+        <span>${item.emoji} ${item.name} ×${item.quantity}</span>
+        <span>${fmt(item.price * item.quantity)}</span>
+      </div>
+    `).join('');
+
+    // Min order warning
+    const minWarn = document.getElementById('min-order-warning') as HTMLElement;
+    const minText = document.getElementById('min-warning-text') as HTMLElement;
+    const confirmBtn = document.getElementById('confirm-btn') as HTMLButtonElement;
+    if (subtotal < minOrder) {
+      minWarn.style.display = 'flex';
+      minText.textContent = `Encomenda mínima: €${minOrder} (faltam ${fmt(minOrder - subtotal)})`;
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.5';
+    } else {
+      minWarn.style.display = 'none';
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '';
+    }
+  }
+
+  // ───── Delivery option toggle ─────
+  document.querySelectorAll('input[name="delivery"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      deliveryType = (e.target as HTMLInputElement).value as 'pickup' | 'delivery';
+      const addressFields = document.getElementById('address-fields')!;
+      addressFields.style.display = deliveryType === 'delivery' ? '' : 'none';
+      // Update selected styling
+      document.querySelectorAll('.delivery-option').forEach(el => el.classList.remove('selected'));
+      const label = (e.target as HTMLInputElement).closest('.delivery-option');
+      if (label) label.classList.add('selected');
+      render();
+    });
+  });
+  // Init selected state
+  document.getElementById('opt-pickup')?.classList.add('selected');
+
+  // ───── Clear cart ─────
+  document.getElementById('clear-cart-btn')?.addEventListener('click', () => {
+    if (confirm('Tem a certeza que quer limpar o carrinho?')) {
+      clearCart();
+      render();
+    }
+  });
+
+  // ───── WhatsApp message builder ─────
+  function buildWhatsAppMessage(params: {
+    name: string; phone: string; quintaName: string;
+    items: CartItem[]; deliveryType: string;
+    address: string; postal: string; city: string; notes: string;
+    subtotal: number; deliveryFee: number; total: number;
+    orderId?: string;
+  }): string {
+    const today = new Date().toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+    const itemLines = params.items
+      .map(i => `  • ${i.emoji} ${i.name} ×${i.quantity} ${i.unit} — ${fmt(i.price * i.quantity)}`)
+      .join('\n');
+
+    const deliveryLine = params.deliveryType === 'pickup'
+      ? '🏪 *Recolha no Mercado de Cascais*'
+      : `🚴 *Entrega em:*\n  ${params.address}${params.postal ? ', ' + params.postal : ''}${params.city ? ' ' + params.city : ''}${params.notes ? '\n  📝 ' + params.notes : ''}`;
+
+    return [
+      `🌾 *Nova Encomenda — Colheita*`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      params.orderId ? `🔖 Ref: #${params.orderId.slice(0,8).toUpperCase()}` : '',
+      `📅 ${today}`,
+      ``,
+      `*Produtos:*`,
+      itemLines,
+      ``,
+      `💰 Subtotal: ${fmt(params.subtotal)}`,
+      params.deliveryType === 'delivery' ? `🚴 Entrega: ${fmt(params.deliveryFee)}` : `🏪 Recolha: Grátis`,
+      `*💶 Total: ${fmt(params.total)}*`,
+      ``,
+      deliveryLine,
+      ``,
+      `👤 *Cliente:* ${params.name}`,
+      `📱 *WhatsApp:* ${params.phone}`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `_Enviado via Colheita 🌾_`,
+    ].join('\n');
+  }
+
+  // ───── Confirm order ─────
+  document.getElementById('confirm-btn')?.addEventListener('click', async () => {
+    const name = (document.getElementById('name') as HTMLInputElement).value.trim();
+    const phone = (document.getElementById('phone') as HTMLInputElement).value.trim();
+    const email = (document.getElementById('email') as HTMLInputElement)?.value.trim() ?? '';
+
+    // Validate required fields
+    let valid = true;
+    if (!name) {
+      const el = document.getElementById('name') as HTMLInputElement;
+      el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
+    }
+    if (!phone) {
+      const el = document.getElementById('phone') as HTMLInputElement;
+      el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
+    }
+    if (deliveryType === 'delivery') {
+      const addr = (document.getElementById('address') as HTMLInputElement).value.trim();
+      if (!addr) {
+        const el = document.getElementById('address') as HTMLInputElement;
+        el.focus(); el.style.borderColor = 'var(--orange)'; valid = false;
+      }
+    }
+    if (!valid) return;
+
+    const cart = getCart();
+    const quintaSlug = cart.items[0]?.quintaSlug ?? '';
+    const quintaName = cart.items[0]?.quintaName ?? 'Quinta';
+    const fee = deliveryFees[quintaSlug] ?? 3.50;
+    const waPhone = waPhones[quintaSlug] ?? '';
+    const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const total = subtotal + (deliveryType === 'delivery' ? fee : 0);
+
+    const address = (document.getElementById('address') as HTMLInputElement)?.value.trim() ?? '';
+    const postal  = (document.getElementById('postal')  as HTMLInputElement)?.value.trim() ?? '';
+    const city    = (document.getElementById('city')    as HTMLInputElement)?.value.trim() ?? '';
+    const notes   = (document.getElementById('notes')   as HTMLInputElement)?.value.trim() ?? '';
+
+    // ── Disable button while saving ──
+    const confirmBtn = document.getElementById('confirm-btn') as HTMLButtonElement;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'A guardar…';
+
+    // ── 1. Save order to D1 database ──
+    let orderId = '';
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farm_slug: quintaSlug, farm_name: quintaName,
+          customer_name: name, customer_phone: phone,
+          customer_email: email || null,
+          delivery_type: deliveryType,
+          address: address || null, postal: postal || null,
+          city: city || null, notes: notes || null,
+          items: cart.items.map(i => ({
+            id: i.id, name: i.name, emoji: i.emoji,
+            quantity: i.quantity, price: i.price, unit: i.unit,
+          })),
+          subtotal, delivery_fee: deliveryType === 'delivery' ? fee : 0, total,
+        }),
+      });
+      const data = await res.json() as { ok?: boolean; id?: string; error?: string };
+      if (data.ok && data.id) orderId = data.id;
+    } catch {
+      // DB not yet configured — still proceed with WhatsApp
+    }
+
+    // ── 2. Build & open WhatsApp ──
+    const waMessage = buildWhatsAppMessage({
+      name, phone, quintaName,
+      items: cart.items,
+      deliveryType, address, postal, city, notes,
+      subtotal, deliveryFee: fee, total,
+      orderId,
+    });
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, '_blank');
+
+    // ── 3. Show confirmation modal ──
+    const modal = document.getElementById('confirm-modal')!;
+    const msg   = document.getElementById('modal-msg')!;
+    const detail = document.getElementById('modal-detail')!;
+
+    msg.textContent = `Obrigado, ${name}! O WhatsApp do agricultor foi aberto com a sua encomenda.`;
+    detail.innerHTML = `
+      ${orderId ? `<div class="modal-row"><span>Nº Encomenda</span><span>#${orderId.slice(0,8).toUpperCase()}</span></div>` : ''}
+      <div class="modal-row"><span>Produtos</span><span>${cart.items.length} produto${cart.items.length > 1 ? 's' : ''}</span></div>
+      <div class="modal-row"><span>Total</span><span>${fmt(total)}</span></div>
+      <div class="modal-row"><span>Entrega</span><span>${deliveryType === 'pickup' ? 'Recolha no Mercado' : 'Domicílio'}</span></div>
+      <div class="modal-row"><span>Contacto</span><span>${phone}</span></div>
+    `;
+
+    modal.style.display = 'flex';
+    clearCart();
+  });
+
+  // ───── Init ─────
+  render();
+</script>
+
+<style>
+  .page-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 2rem;
+    padding: 2.5rem 1.25rem 4rem;
+    align-items: start;
+  }
+
+  .page-title { font-size: 1.8rem; color: var(--green-800); margin-bottom: 1.75rem; }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .empty-state h2 { font-size: 1.4rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .empty-state p { color: var(--text-muted); margin-bottom: 1.5rem; }
+
+  /* ===== SECTIONS ===== */
+  .cart-section,
+  .delivery-section,
+  .contact-section {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cart-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .cart-section-header h2 { font-size: 1.1rem; color: var(--green-800); margin: 0; }
+  .clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+  .clear-btn:hover { color: var(--orange); }
+
+  /* ===== CART ITEMS LIST ===== */
+  .cart-items-list { list-style: none; padding: 0; margin: 0; }
+  .cart-item-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .cart-item-row:last-child { border-bottom: none; }
+  .ci-emoji { font-size: 1.3rem; flex-shrink: 0; }
+  .ci-name { flex: 1; font-weight: 500; color: var(--text); }
+  .ci-unit { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
+
+  .ci-qty-ctrl { display: flex; align-items: center; gap: 0.4rem; }
+  .qty-btn {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    border: 1.5px solid var(--green-300);
+    background: #fff;
+    color: var(--green-700);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s;
+  }
+  .qty-btn:hover { background: var(--green-50); }
+  .ci-qty-num { min-width: 1.4rem; text-align: center; font-weight: 700; font-size: 0.9rem; color: var(--green-800); }
+  .ci-price { font-weight: 700; color: var(--green-800); min-width: 3.5rem; text-align: right; }
+  .ci-remove {
+    background: none; border: none;
+    color: var(--text-light); cursor: pointer;
+    font-size: 1.1rem; padding: 0; line-height: 1;
+  }
+  .ci-remove:hover { color: var(--orange); }
+
+  /* ===== DELIVERY ===== */
+  .delivery-section h2,
+  .contact-section h2 { font-size: 1.1rem; color: var(--green-800); margin-bottom: 1rem; }
+
+  .delivery-options { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+  .delivery-option { display: block; cursor: pointer; }
+  .delivery-option input { position: absolute; opacity: 0; pointer-events: none; }
+  .delivery-option-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .delivery-option.selected .delivery-option-content {
+    border-color: var(--green-500);
+    background: var(--green-50);
+  }
+  .delivery-option-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .delivery-option-info { flex: 1; }
+  .delivery-option-info strong { display: block; font-size: 0.9rem; color: var(--text); margin-bottom: 0.15rem; }
+  .delivery-option-info p { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+  .delivery-option-price { font-weight: 700; color: var(--green-700); font-size: 0.95rem; white-space: nowrap; }
+
+  .address-fields { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+  .field-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.75rem; }
+  .field-group label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+  .field-group input {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  .field-group input:focus { border-color: var(--green-500); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  /* ===== CONTACT ===== */
+  .contact-note { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+  .contact-form { display: flex; flex-direction: column; gap: 0; }
+
+  /* ===== SUMMARY CARD ===== */
+  .summary-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    position: sticky;
+    top: 80px;
+    box-shadow: 0 2px 16px var(--shadow);
+  }
+  .summary-card h3 { font-size: 1.1rem; color: var(--green-800); margin-bottom: 1rem; }
+
+  .summary-items { margin-bottom: 1rem; }
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    padding: 0.3rem 0;
+    color: var(--text-muted);
+    border-bottom: 1px dashed var(--border);
+  }
+  .summary-item:last-child { border-bottom: none; margin-bottom: 0.5rem; }
+
+  .summary-totals { background: var(--cream-100); border-radius: 10px; padding: 0.85rem; margin-bottom: 1.25rem; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 0.875rem; padding: 0.2rem 0; color: var(--text-muted); }
+  .summary-total { border-top: 1px solid var(--border); margin-top: 0.4rem; padding-top: 0.4rem; font-weight: 700; color: var(--green-800); font-size: 1rem; }
+
+  .payment-info { margin-bottom: 1.25rem; }
+  .payment-info h4 { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; }
+  .payment-options { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .payment-badge {
+    background: var(--cream-100);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .payment-info > p { font-size: 0.78rem; color: var(--text-muted); margin: 0; }
+
+  .min-warning {
+    background: var(--orange-50);
+    border: 1px solid #fcd9cf;
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.82rem;
+    color: var(--orange);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .confirm-btn { width: 100%; justify-content: center; padding: 0.85rem; font-size: 1rem; }
+  .confirm-btn:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
+  .confirm-note { font-size: 0.75rem; color: var(--text-light); text-align: center; margin: 0.5rem 0 0; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    backdrop-filter: blur(3px);
+  }
+  .modal-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .modal-box h2 { font-size: 1.5rem; color: var(--green-800); margin-bottom: 0.5rem; }
+  .modal-msg { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; }
+  .modal-detail {
+    background: var(--green-50);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    text-align: left;
+  }
+  .modal-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    padding: 0.25rem 0;
+    color: var(--text);
+  }
+  .modal-row span:first-child { color: var(--text-muted); }
+  .modal-row span:last-child { font-weight: 600; }
+  .modal-next { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 800px) {
+    .page-layout { grid-template-columns: 1fr; }
+    .summary-card { position: static; }
+    /* Reorder: summary above confirm on mobile */
+  }
+  @media (max-width: 480px) {
+    .field-row { grid-template-columns: 1fr; }
+    .delivery-option-price { display: none; }
+    .page-layout { padding: 1.5rem 1rem 3rem; }
+  }
+</style>
