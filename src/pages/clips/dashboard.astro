@@ -1,0 +1,335 @@
+---
+export const prerender = false;
+
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+interface Clip {
+  id: string; url: string; title: string; description: string;
+  tags: string[]; date: string; scheduledDate?: string;
+  stage?: string; thumbnail?: string; channel?: string;
+  duration?: string; rating?: number;
+  moments?: Array<{ time: string; note: string }>;
+  collection?: string; clipType?: string;
+}
+
+function getHostname(url: string) {
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+}
+function stars(n?: number) { return '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0)); }
+
+let clips: Clip[] = [];
+try {
+  const { env } = Astro.locals.runtime;
+  const json = await env.CLIPS_KV.get('clips');
+  clips = json ? JSON.parse(json) : [];
+} catch { /* no KV */ }
+
+// ── Stats ────────────────────────────────────────────────────────
+const total      = clips.length;
+const toWatch    = clips.filter(c => (c.stage || 'to-watch') === 'to-watch').length;
+const watching   = clips.filter(c => c.stage === 'watching').length;
+const watched    = clips.filter(c => c.stage === 'watched').length;
+const pctDone    = total > 0 ? Math.round((watched / total) * 100) : 0;
+
+const rated      = clips.filter(c => c.rating && c.rating > 0);
+const avgRating  = rated.length > 0
+  ? (rated.reduce((s, c) => s + (c.rating || 0), 0) / rated.length).toFixed(1)
+  : '—';
+
+// Clips added this week
+const weekAgo    = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+const thisWeek   = clips.filter(c => new Date(c.date) > weekAgo).length;
+
+// ── Watch Next: top-rated to-watch ───────────────────────────────
+const watchNext  = clips
+  .filter(c => (c.stage || 'to-watch') === 'to-watch')
+  .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+  .slice(0, 4);
+
+// ── Collections ──────────────────────────────────────────────────
+const colMap: Record<string, Clip[]> = {};
+clips.forEach(c => {
+  const key = c.collection || '—';
+  (colMap[key] = colMap[key] || []).push(c);
+});
+const collections = Object.entries(colMap)
+  .filter(([k]) => k !== '—')
+  .sort(([, a], [, b]) => b.length - a.length);
+
+// ── Top Tags ─────────────────────────────────────────────────────
+const tagMap: Record<string, number> = {};
+clips.forEach(c => c.tags.forEach(t => { tagMap[t] = (tagMap[t] || 0) + 1; }));
+const topTags = Object.entries(tagMap).sort(([, a], [, b]) => b - a).slice(0, 8);
+const maxTag  = topTags[0]?.[1] || 1;
+
+// ── Clip types ───────────────────────────────────────────────────
+const typeMap: Record<string, number> = {};
+clips.forEach(c => { const t = c.clipType || 'other'; typeMap[t] = (typeMap[t] || 0) + 1; });
+
+// ── Rating distribution ──────────────────────────────────────────
+const ratingDist = [5, 4, 3, 2, 1].map(n => ({
+  n, count: clips.filter(c => c.rating === n).length
+}));
+const maxRating = Math.max(...ratingDist.map(r => r.count), 1);
+
+const clipTypeEmoji: Record<string, string> = {
+  tutorial: '📘', inspiration: '💡', research: '🔬',
+  entertainment: '🎬', news: '📰', other: '📎',
+};
+---
+
+<!doctype html>
+<html lang="pt">
+<head>
+  <BaseHead title={`Dashboard | ${SITE_TITLE}`} description="Analytics da tua biblioteca" />
+</head>
+<body>
+  <Header />
+  <main>
+    <div class="dash-header">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">A tua biblioteca de media</p>
+      </div>
+      <a href="/clips/admin" class="btn-add">+ Novo Clip</a>
+    </div>
+
+    <!-- ── Stat Cards ─────────────────────────────────────────── -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-num">{total}</span>
+        <span class="stat-label">Total de clips</span>
+      </div>
+      <div class="stat-card accent-blue">
+        <span class="stat-num">{toWatch}</span>
+        <span class="stat-label">📋 Para ver</span>
+      </div>
+      <div class="stat-card accent-yellow">
+        <span class="stat-num">{watching}</span>
+        <span class="stat-label">▶️ A ver</span>
+      </div>
+      <div class="stat-card accent-green">
+        <span class="stat-num">{watched}</span>
+        <span class="stat-label">✅ Vistos</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{pctDone}%</span>
+        <span class="stat-label">Concluído</span>
+        <div class="progress-bar">
+          <div class="progress-fill" style={`width:${pctDone}%`}></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{avgRating} <span class="stat-unit">★</span></span>
+        <span class="stat-label">Rating médio</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{thisWeek}</span>
+        <span class="stat-label">Esta semana</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{collections.length}</span>
+        <span class="stat-label">Coleções</span>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+
+      <!-- ── Watch Next ──────────────────────────────────────── -->
+      <section class="dash-section span-2">
+        <h2>🎯 Watch Next</h2>
+        <p class="section-sub">Os melhores clips que ainda não viste</p>
+        {watchNext.length === 0 ? (
+          <p class="empty">Sem clips na fila. <a href="/clips/admin">Adiciona um →</a></p>
+        ) : (
+          <div class="watch-next-grid">
+            {watchNext.map(clip => (
+              <a href={clip.url} target="_blank" rel="noopener noreferrer" class="watch-card">
+                {clip.thumbnail
+                  ? <img src={clip.thumbnail} alt="" class="watch-thumb" />
+                  : <div class="watch-thumb-placeholder">{clipTypeEmoji[clip.clipType || 'other']}</div>
+                }
+                <div class="watch-info">
+                  <span class="watch-title">{clip.title}</span>
+                  <span class="watch-meta">
+                    {clip.channel || getHostname(clip.url)}
+                    {clip.duration && <span class="duration-badge">{clip.duration}</span>}
+                  </span>
+                  {clip.rating && <span class="watch-stars">{stars(clip.rating)}</span>}
+                  {clip.tags.length > 0 && (
+                    <div class="watch-tags">
+                      {clip.tags.slice(0, 3).map(t => <span class="tag">{t}</span>)}
+                    </div>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <!-- ── Collections ────────────────────────────────────── -->
+      <section class="dash-section">
+        <h2>📁 Coleções</h2>
+        {collections.length === 0
+          ? <p class="empty">Nenhuma coleção ainda.</p>
+          : <ul class="col-list">
+              {collections.map(([name, cls]) => (
+                <li class="col-item">
+                  <a href={`/clips?collection=${encodeURIComponent(name)}`} class="col-name">{name}</a>
+                  <div class="col-bar-wrap">
+                    <div class="col-bar" style={`width:${Math.round((cls.length / total) * 100)}%`}></div>
+                  </div>
+                  <span class="col-count">{cls.length}</span>
+                </li>
+              ))}
+            </ul>
+        }
+      </section>
+
+      <!-- ── Top Tags ───────────────────────────────────────── -->
+      <section class="dash-section">
+        <h2>🏷️ Top Tags</h2>
+        {topTags.length === 0
+          ? <p class="empty">Sem tags ainda.</p>
+          : <ul class="tag-bar-list">
+              {topTags.map(([tag, count]) => (
+                <li class="tag-bar-item">
+                  <a href={`/clips?tag=${encodeURIComponent(tag)}`} class="tag-bar-label">{tag}</a>
+                  <div class="tag-bar-wrap">
+                    <div class="tag-bar-fill" style={`width:${Math.round((count / maxTag) * 100)}%`}></div>
+                  </div>
+                  <span class="tag-bar-count">{count}</span>
+                </li>
+              ))}
+            </ul>
+        }
+      </section>
+
+      <!-- ── Rating Distribution ───────────────────────────── -->
+      <section class="dash-section">
+        <h2>⭐ Ratings</h2>
+        {rated.length === 0
+          ? <p class="empty">Nenhum clip avaliado ainda.</p>
+          : <ul class="rating-dist">
+              {ratingDist.map(({ n, count }) => (
+                <li class="rating-row">
+                  <span class="rating-stars">{'★'.repeat(n)}</span>
+                  <div class="rating-bar-wrap">
+                    <div class="rating-bar-fill" style={`width:${Math.round((count / maxRating) * 100)}%`}></div>
+                  </div>
+                  <span class="rating-count">{count}</span>
+                </li>
+              ))}
+            </ul>
+        }
+      </section>
+
+      <!-- ── Clip Types ─────────────────────────────────────── -->
+      <section class="dash-section">
+        <h2>🗂️ Tipos de Conteúdo</h2>
+        {Object.keys(typeMap).length === 0
+          ? <p class="empty">Sem tipos definidos.</p>
+          : <ul class="type-list">
+              {Object.entries(typeMap).sort(([,a],[,b]) => b-a).map(([type, count]) => (
+                <li class="type-item">
+                  <span class="type-emoji">{clipTypeEmoji[type] || '📎'}</span>
+                  <span class="type-name">{type}</span>
+                  <span class="type-count">{count}</span>
+                </li>
+              ))}
+            </ul>
+        }
+      </section>
+
+    </div>
+  </main>
+  <Footer />
+</body>
+</html>
+
+<style>
+  .dash-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5em; flex-wrap: wrap; gap: 1em; }
+  h1 { margin: 0 0 0.1em; }
+  .subtitle { color: rgb(var(--gray)); margin: 0; font-size: 0.9em; }
+  .btn-add { background: var(--accent); color: white; text-decoration: none; padding: 0.5em 1.25em; border-radius: 4px; font-size: 0.9em; white-space: nowrap; }
+  .btn-add:hover { background: var(--accent-dark); }
+
+  /* Stat grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75em; margin-bottom: 1.75em; }
+  .stat-card { background: white; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1em 1.25em; display: flex; flex-direction: column; gap: 0.2em; }
+  .stat-card.accent-blue  { border-top: 3px solid #1a73e8; }
+  .stat-card.accent-yellow { border-top: 3px solid #f9ab00; }
+  .stat-card.accent-green { border-top: 3px solid #34a853; }
+  .stat-num { font-size: 2em; font-weight: 700; line-height: 1; color: rgb(var(--black)); }
+  .stat-unit { font-size: 0.5em; color: #f9ab00; }
+  .stat-label { font-size: 0.78em; color: rgb(var(--gray)); }
+  .progress-bar { height: 4px; background: rgb(var(--gray-light)); border-radius: 2px; margin-top: 0.4em; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+  /* Dash grid */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  .dash-section { background: white; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1.25em; }
+  .dash-section.span-2 { grid-column: 1 / -1; }
+  .dash-section h2 { font-size: 1em; margin: 0 0 0.3em; }
+  .section-sub { font-size: 0.8em; color: rgb(var(--gray)); margin: 0 0 1em; }
+  .empty { color: rgb(var(--gray)); font-style: italic; font-size: 0.9em; }
+  .empty a { color: var(--accent); }
+
+  /* Watch Next */
+  .watch-next-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75em; }
+  .watch-card { display: flex; flex-direction: column; border: 1px solid rgb(var(--gray-light)); border-radius: 6px; overflow: hidden; text-decoration: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  .watch-card:hover { border-color: var(--accent); box-shadow: var(--box-shadow); }
+  .watch-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+  .watch-thumb-placeholder { width: 100%; aspect-ratio: 16/9; background: rgb(var(--gray-light)); display: flex; align-items: center; justify-content: center; font-size: 2em; }
+  .watch-info { padding: 0.6em; display: flex; flex-direction: column; gap: 0.2em; flex: 1; }
+  .watch-title { font-size: 0.82em; font-weight: 700; color: rgb(var(--black)); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .watch-meta { font-size: 0.72em; color: rgb(var(--gray)); display: flex; align-items: center; gap: 0.4em; }
+  .duration-badge { background: rgb(var(--gray-light)); border-radius: 3px; padding: 0.05em 0.3em; font-size: 0.85em; }
+  .watch-stars { font-size: 0.75em; color: #f9ab00; letter-spacing: 1px; }
+  .watch-tags { display: flex; flex-wrap: wrap; gap: 0.3em; margin-top: 0.2em; }
+  .tag { font-size: 0.68em; padding: 0.1em 0.5em; border-radius: 999px; background: rgb(var(--gray-light)); color: rgb(var(--gray-dark)); }
+
+  /* Collections */
+  .col-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6em; }
+  .col-item { display: flex; align-items: center; gap: 0.6em; }
+  .col-name { font-size: 0.85em; font-weight: 600; color: rgb(var(--black)); text-decoration: none; min-width: 80px; }
+  .col-name:hover { color: var(--accent); }
+  .col-bar-wrap { flex: 1; height: 6px; background: rgb(var(--gray-light)); border-radius: 3px; overflow: hidden; }
+  .col-bar { height: 100%; background: var(--accent); border-radius: 3px; }
+  .col-count { font-size: 0.8em; color: rgb(var(--gray)); min-width: 24px; text-align: right; }
+
+  /* Tags */
+  .tag-bar-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5em; }
+  .tag-bar-item { display: flex; align-items: center; gap: 0.6em; }
+  .tag-bar-label { font-size: 0.82em; color: rgb(var(--black)); text-decoration: none; min-width: 80px; }
+  .tag-bar-label:hover { color: var(--accent); }
+  .tag-bar-wrap { flex: 1; height: 6px; background: rgb(var(--gray-light)); border-radius: 3px; overflow: hidden; }
+  .tag-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .tag-bar-count { font-size: 0.8em; color: rgb(var(--gray)); min-width: 20px; text-align: right; }
+
+  /* Ratings */
+  .rating-dist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5em; }
+  .rating-row { display: flex; align-items: center; gap: 0.6em; }
+  .rating-stars { font-size: 0.75em; color: #f9ab00; min-width: 60px; letter-spacing: 1px; }
+  .rating-bar-wrap { flex: 1; height: 6px; background: rgb(var(--gray-light)); border-radius: 3px; overflow: hidden; }
+  .rating-bar-fill { height: 100%; background: #f9ab00; border-radius: 3px; }
+  .rating-count { font-size: 0.8em; color: rgb(var(--gray)); min-width: 20px; text-align: right; }
+
+  /* Types */
+  .type-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5em; }
+  .type-item { display: flex; align-items: center; gap: 0.6em; padding: 0.4em 0; border-bottom: 1px solid rgb(var(--gray-light)); }
+  .type-item:last-child { border-bottom: none; }
+  .type-emoji { font-size: 1.1em; }
+  .type-name { flex: 1; font-size: 0.85em; color: rgb(var(--gray-dark)); text-transform: capitalize; }
+  .type-count { font-size: 0.85em; font-weight: 700; color: rgb(var(--black)); }
+
+  @media (max-width: 720px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash-grid { grid-template-columns: 1fr; }
+    .watch-next-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

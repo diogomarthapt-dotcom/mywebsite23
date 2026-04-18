@@ -7,117 +7,157 @@ import Footer from '../../components/Footer.astro';
 import { SITE_TITLE } from '../../consts';
 
 interface Clip {
-  id: string;
-  url: string;
-  title: string;
-  description: string;
-  tags: string[];
-  date: string;
-  scheduledDate?: string;
-  stage?: 'to-watch' | 'watching' | 'watched';
-  thumbnail?: string;
-  channel?: string;
+  id: string; url: string; title: string; description: string;
+  tags: string[]; date: string; scheduledDate?: string;
+  stage?: string; thumbnail?: string; channel?: string;
+  duration?: string; rating?: number;
+  moments?: Array<{ time: string; note: string }>;
+  collection?: string; clipType?: string;
 }
 
-function getHostname(url: string): string {
+function getHostname(url: string) {
   try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
 }
 
 let clips: Clip[] = [];
 try {
   const { env } = Astro.locals.runtime;
-  const clipsJson = await env.CLIPS_KV.get('clips');
-  clips = clipsJson ? JSON.parse(clipsJson) : [];
-} catch { /* KV not available */ }
+  const json = await env.CLIPS_KV.get('clips');
+  clips = json ? JSON.parse(json) : [];
+} catch { /* no KV */ }
 
-const allTags = [...new Set(clips.flatMap((c) => c.tags))].sort();
-const searchParams = new URL(Astro.request.url).searchParams;
-const activeTag = searchParams.get('tag') || '';
-const activeView = searchParams.get('view') || 'list';
+const sp          = new URL(Astro.request.url).searchParams;
+const activeTag   = sp.get('tag') || '';
+const activeView  = sp.get('view') || 'list';
+const activeCol   = sp.get('collection') || '';
 
-const filteredClips = activeTag ? clips.filter((c) => c.tags.includes(activeTag)) : clips;
+const allTags     = [...new Set(clips.flatMap(c => c.tags))].sort();
+const allCols     = [...new Set(clips.map(c => c.collection).filter(Boolean) as string[])].sort();
 
 const stageColumns = [
-  { key: 'to-watch', label: '📋 Para ver',  color: '#1a73e8' },
-  { key: 'watching', label: '▶️  A ver',    color: '#b06000' },
-  { key: 'watched',  label: '✅ Visto',     color: '#1e6e34' },
+  { key: 'to-watch', label: '📋 Para ver', color: '#1a73e8' },
+  { key: 'watching', label: '▶️  A ver',   color: '#f9ab00' },
+  { key: 'watched',  label: '✅ Visto',    color: '#34a853' },
 ];
+
+function buildUrl(overrides: Record<string, string>) {
+  const params = new URLSearchParams();
+  if (activeTag)  params.set('tag', activeTag);
+  if (activeView) params.set('view', activeView);
+  if (activeCol)  params.set('collection', activeCol);
+  Object.entries(overrides).forEach(([k, v]) => v ? params.set(k, v) : params.delete(k));
+  return `/clips?${params.toString()}`;
+}
+
+let filtered = clips;
+if (activeTag) filtered = filtered.filter(c => c.tags.includes(activeTag));
+if (activeCol) filtered = filtered.filter(c => c.collection === activeCol);
 ---
 
 <!doctype html>
 <html lang="pt">
-  <head>
-    <BaseHead title={`Clipping | ${SITE_TITLE}`} description="Links e vídeos guardados" />
-    <!-- Pass clips data to client JS -->
-    <script is:inline define:vars={{ clipsData: filteredClips }}>
-      window.__CLIPS__ = clipsData;
-    </script>
-  </head>
-  <body>
-    <Header />
-    <main>
-      <!-- Header -->
-      <div class="page-header">
+<head>
+  <BaseHead title={`Clipping | ${SITE_TITLE}`} description="Biblioteca de media curada" />
+  <script is:inline define:vars={{ allClips: filtered }}>
+    window.__CLIPS__ = allClips;
+  </script>
+</head>
+<body>
+  <Header />
+  <main>
+    <div class="page-header">
+      <div>
         <h1>Clipping</h1>
-        <p class="subtitle">{filteredClips.length} {activeTag ? `com tag "${activeTag}"` : 'guardados'}</p>
+        <p class="subtitle">{filtered.length} clip{filtered.length !== 1 ? 's' : ''}{activeCol ? ` em "${activeCol}"` : activeTag ? ` com tag "${activeTag}"` : ''}</p>
       </div>
+      <a href="/clips/dashboard" class="dash-link">📊 Dashboard</a>
+    </div>
 
-      <!-- Controls -->
-      <div class="controls">
-        <!-- Tag filter -->
+    <!-- ── Search ────────────────────────────────────────────── -->
+    <div class="search-row">
+      <input type="search" id="search-input" placeholder="🔍 Pesquisar clips..." class="search-input" />
+      <span id="search-count" class="search-count"></span>
+    </div>
+
+    <!-- ── Controls ──────────────────────────────────────────── -->
+    <div class="controls">
+      <div class="filters-left">
+        <!-- Tags -->
         {allTags.length > 0 && (
-          <div class="tags-filter">
-            <a href={`/clips?view=${activeView}`} class:list={['tag-btn', { active: !activeTag }]}>Todos</a>
-            {allTags.map((tag) => (
-              <a href={`/clips?tag=${encodeURIComponent(tag)}&view=${activeView}`} class:list={['tag-btn', { active: activeTag === tag }]}>{tag}</a>
-            ))}
+          <div class="filter-group">
+            <span class="filter-label">Tag:</span>
+            <div class="tag-row">
+              <a href={buildUrl({ tag: '', view: activeView })} class:list={['tag-btn', { active: !activeTag }]}>Todos</a>
+              {allTags.map(t => (
+                <a href={buildUrl({ tag: t, view: activeView })} class:list={['tag-btn', { active: activeTag === t }]}>{t}</a>
+              ))}
+            </div>
           </div>
         )}
-
-        <!-- View switcher -->
-        <div class="view-tabs">
-          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=list`}
-             class:list={['view-tab', { active: activeView === 'list' }]}>Lista</a>
-          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=pipeline`}
-             class:list={['view-tab', { active: activeView === 'pipeline' }]}>Pipeline</a>
-          <a href={`/clips${activeTag ? `?tag=${encodeURIComponent(activeTag)}&` : '?'}view=calendar`}
-             class:list={['view-tab', { active: activeView === 'calendar' }]}>Calendário</a>
-        </div>
+        <!-- Collections -->
+        {allCols.length > 0 && (
+          <div class="filter-group">
+            <span class="filter-label">Coleção:</span>
+            <div class="tag-row">
+              <a href={buildUrl({ collection: '', view: activeView })} class:list={['tag-btn', { active: !activeCol }]}>Todas</a>
+              {allCols.map(c => (
+                <a href={buildUrl({ collection: c, view: activeView })} class:list={['tag-btn', { active: activeCol === c }]}>📁 {c}</a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <!-- ── LIST VIEW ─────────────────────────────────────────── -->
-      {activeView === 'list' && (
-        filteredClips.length === 0 ? (
-          <p class="empty">Nenhum clip encontrado.</p>
-        ) : (
-          <ul class="clips-list">
-            {filteredClips.map((clip) => (
-              <li class="clip-card">
+      <!-- View tabs -->
+      <div class="view-tabs">
+        <a href={buildUrl({ view: 'list' })}     class:list={['view-tab', { active: activeView === 'list' }]}>Lista</a>
+        <a href={buildUrl({ view: 'pipeline' })} class:list={['view-tab', { active: activeView === 'pipeline' }]}>Pipeline</a>
+        <a href={buildUrl({ view: 'calendar' })} class:list={['view-tab', { active: activeView === 'calendar' }]}>Calendário</a>
+      </div>
+    </div>
+
+    <!-- ── LIST VIEW ──────────────────────────────────────────── -->
+    {activeView === 'list' && (
+      filtered.length === 0
+        ? <p class="empty">Nenhum clip encontrado.</p>
+        : <ul class="clips-list" id="clips-list">
+            {filtered.map(clip => (
+              <li class="clip-card" data-search={`${clip.title} ${clip.description} ${clip.channel || ''} ${clip.tags.join(' ')} ${clip.collection || ''}`}>
                 {clip.thumbnail && (
                   <a href={clip.url} target="_blank" rel="noopener noreferrer" class="thumb-link">
                     <img class="card-thumb" src={clip.thumbnail} alt="" loading="lazy" />
+                    {clip.duration && <span class="duration-overlay">{clip.duration}</span>}
                   </a>
                 )}
                 <div class="card-body">
                   <div class="card-meta">
-                    <time datetime={clip.date}>
-                      {new Date(clip.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </time>
-                    {(clip.stage && clip.stage !== 'to-watch') && (
-                      <span class={`stage-badge stage-${clip.stage}`}>
-                        {clip.stage === 'watching' ? '▶️ A ver' : '✅ Visto'}
-                      </span>
+                    <time datetime={clip.date}>{new Date(clip.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</time>
+                    {clip.stage && clip.stage !== 'to-watch' && (
+                      <span class={`stage-badge stage-${clip.stage}`}>{clip.stage === 'watching' ? '▶️ A ver' : '✅ Visto'}</span>
                     )}
+                    {clip.rating && <span class="stars-display">{'★'.repeat(clip.rating)}{'☆'.repeat(5 - clip.rating)}</span>}
+                    {clip.collection && <span class="col-badge">📁 {clip.collection}</span>}
                     {clip.tags.length > 0 && (
                       <div class="clip-tags">
-                        {clip.tags.map((tag) => (
-                          <a href={`/clips?tag=${encodeURIComponent(tag)}&view=list`} class="tag">{tag}</a>
+                        {clip.tags.map(t => (
+                          <a href={buildUrl({ tag: t, view: 'list' })} class="tag">{t}</a>
                         ))}
                       </div>
                     )}
                   </div>
                   <a href={clip.url} target="_blank" rel="noopener noreferrer" class="clip-title">{clip.title}</a>
                   {clip.description && <p class="clip-description">{clip.description}</p>}
+                  {clip.moments && clip.moments.length > 0 && (
+                    <ul class="moments-preview">
+                      {clip.moments.slice(0, 2).map(m => (
+                        <li class="moment-item">
+                          <span class="moment-time-badge">{m.time}</span>
+                          <span class="moment-note">{m.note}</span>
+                        </li>
+                      ))}
+                      {clip.moments.length > 2 && <li class="moment-more">+{clip.moments.length - 2} momentos</li>}
+                    </ul>
+                  )}
                   <a href={clip.url} target="_blank" rel="noopener noreferrer" class="clip-url">
                     ↗ {clip.channel ? `${clip.channel} · ` : ''}{getHostname(clip.url)}
                   </a>
@@ -125,287 +165,267 @@ const stageColumns = [
               </li>
             ))}
           </ul>
-        )
-      )}
+    )}
 
-      <!-- ── PIPELINE VIEW ────────────────────────────────────── -->
-      {activeView === 'pipeline' && (
-        <div class="pipeline">
-          {stageColumns.map(({ key, label, color }) => {
-            const col = filteredClips.filter((c) => (c.stage || 'to-watch') === key);
-            return (
-              <div class="pipeline-col">
-                <div class="col-header" style={`border-top: 3px solid ${color}`}>
-                  <span>{label}</span>
-                  <span class="col-count">{col.length}</span>
-                </div>
-                {col.length === 0 ? (
-                  <p class="col-empty">Sem clips</p>
-                ) : (
-                  <ul class="col-list">
-                    {col.map((clip) => (
+    <!-- ── PIPELINE VIEW ──────────────────────────────────────── -->
+    {activeView === 'pipeline' && (
+      <div class="pipeline">
+        {stageColumns.map(({ key, label, color }) => {
+          const col = filtered.filter(c => (c.stage || 'to-watch') === key)
+            .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          return (
+            <div class="pipeline-col">
+              <div class="col-header" style={`border-top: 3px solid ${color}`}>
+                <span>{label}</span>
+                <span class="col-count">{col.length}</span>
+              </div>
+              {col.length === 0
+                ? <p class="col-empty">Sem clips</p>
+                : <ul class="col-list">
+                    {col.map(clip => (
                       <li class="pipeline-card">
                         {clip.thumbnail && <img class="pipeline-thumb" src={clip.thumbnail} alt="" loading="lazy" />}
                         <a href={clip.url} target="_blank" rel="noopener noreferrer" class="pipeline-title">{clip.title}</a>
-                        <span class="pipeline-host">{clip.channel || getHostname(clip.url)}</span>
+                        <div class="pipeline-meta">
+                          <span class="pipeline-host">{clip.channel || getHostname(clip.url)}</span>
+                          {clip.duration && <span class="duration-badge">{clip.duration}</span>}
+                          {clip.rating && <span class="stars-sm">{'★'.repeat(clip.rating)}</span>}
+                        </div>
                         {clip.tags.length > 0 && (
-                          <div class="clip-tags" style="margin-top:0.35em">
-                            {clip.tags.map((tag) => <span class="tag">{tag}</span>)}
+                          <div class="clip-tags" style="margin-top:0.3em">
+                            {clip.tags.slice(0, 3).map(t => <span class="tag">{t}</span>)}
                           </div>
                         )}
                       </li>
                     ))}
                   </ul>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              }
+            </div>
+          );
+        })}
+      </div>
+    )}
 
-      <!-- ── CALENDAR VIEW ────────────────────────────────────── -->
-      {activeView === 'calendar' && (
-        <div class="calendar-wrap">
-          <div class="cal-nav">
-            <button id="cal-prev">←</button>
-            <span id="cal-label"></span>
-            <button id="cal-next">→</button>
-          </div>
-          <div class="cal-grid" id="cal-grid">
-            {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d) => (
-              <div class="cal-weekday">{d}</div>
-            ))}
-          </div>
-          <div id="cal-detail" class="cal-detail" style="display:none">
-            <h3 id="cal-detail-date"></h3>
-            <ul id="cal-detail-list" class="col-list"></ul>
-          </div>
+    <!-- ── CALENDAR VIEW ──────────────────────────────────────── -->
+    {activeView === 'calendar' && (
+      <div class="calendar-wrap">
+        <div class="cal-nav">
+          <button id="cal-prev">←</button>
+          <span id="cal-label"></span>
+          <button id="cal-next">→</button>
         </div>
-      )}
-    </main>
-    <Footer />
-  </body>
+        <div class="cal-grid" id="cal-grid">
+          {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d => <div class="cal-weekday">{d}</div>)}
+        </div>
+        <div id="cal-detail" class="cal-detail" style="display:none">
+          <h3 id="cal-detail-date"></h3>
+          <ul id="cal-detail-list" class="col-list"></ul>
+        </div>
+      </div>
+    )}
+  </main>
+  <Footer />
+</body>
 </html>
 
 <script>
-  // Only runs in calendar view
+  // ── Search ────────────────────────────────────────────────────
+  const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+  const searchCount = document.getElementById('search-count') as HTMLElement | null;
+  const clipsList   = document.getElementById('clips-list');
+
+  if (searchInput && clipsList) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      const items = clipsList.querySelectorAll<HTMLElement>('.clip-card');
+      let shown = 0;
+      items.forEach(item => {
+        const match = !q || (item.dataset.search || '').toLowerCase().includes(q);
+        item.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      if (searchCount) searchCount.textContent = q ? `${shown} resultado${shown !== 1 ? 's' : ''}` : '';
+    });
+  }
+
+  // ── Calendar ──────────────────────────────────────────────────
   const calGrid = document.getElementById('cal-grid');
   if (calGrid) {
-    const clips: Array<{
-      id: string; url: string; title: string; description: string;
-      tags: string[]; date: string; scheduledDate?: string;
-      stage?: string; thumbnail?: string; channel?: string;
-    }> = (window as unknown as { __CLIPS__: typeof clips }).__CLIPS__ || [];
+    type ClipData = {
+      url: string; title: string; thumbnail?: string;
+      channel?: string; stage?: string; scheduledDate?: string; date: string;
+    };
+    const clips: ClipData[] = (window as unknown as { __CLIPS__: ClipData[] }).__CLIPS__ || [];
+    let current = new Date(); current.setDate(1);
 
-    let current = new Date();
-    current.setDate(1);
+    function clipDate(c: ClipData) { return c.scheduledDate || c.date.slice(0, 10); }
 
-    function getClipDate(clip: typeof clips[0]): string {
-      return clip.scheduledDate || clip.date.slice(0, 10);
-    }
+    function render() {
+      const y = current.getFullYear(), m = current.getMonth();
+      (document.getElementById('cal-label') as HTMLElement).textContent =
+        current.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 
-    function renderCalendar() {
-      const year  = current.getFullYear();
-      const month = current.getMonth();
-
-      const label = document.getElementById('cal-label')!;
-      label.textContent = current.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
-
-      // Remove all day cells (keep weekday headers = first 7 children)
       while (calGrid.children.length > 7) calGrid.removeChild(calGrid.lastChild!);
 
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const today = new Date().toISOString().slice(0, 10);
+      const firstDay = new Date(y, m, 1).getDay();
+      const days     = new Date(y, m + 1, 0).getDate();
+      const today    = new Date().toISOString().slice(0, 10);
+      const prefix   = `${y}-${String(m + 1).padStart(2, '0')}`;
 
-      // Group clips by date
-      const byDate: Record<string, typeof clips> = {};
-      clips.forEach((c) => {
-        const d = getClipDate(c);
-        if (d.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)) {
-          (byDate[d] = byDate[d] || []).push(c);
-        }
+      const byDate: Record<string, ClipData[]> = {};
+      clips.forEach(c => {
+        const d = clipDate(c);
+        if (d.startsWith(prefix)) (byDate[d] = byDate[d] || []).push(c);
       });
 
-      // Blank cells before first day
       for (let i = 0; i < firstDay; i++) {
-        const blank = document.createElement('div');
-        blank.className = 'cal-cell cal-blank';
-        calGrid.appendChild(blank);
+        const b = document.createElement('div');
+        b.className = 'cal-cell cal-blank'; calGrid.appendChild(b);
       }
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      for (let day = 1; day <= days; day++) {
+        const ds   = `${prefix}-${String(day).padStart(2, '0')}`;
         const cell = document.createElement('div');
-        cell.className = 'cal-cell' + (dateStr === today ? ' cal-today' : '');
-
-        const dayClips = byDate[dateStr] || [];
+        const dcs  = byDate[ds] || [];
+        cell.className = 'cal-cell' + (ds === today ? ' cal-today' : '') + (dcs.length ? ' cal-has-clips' : '');
         cell.innerHTML = `<span class="cal-day">${day}</span>`;
-
-        if (dayClips.length > 0) {
-          cell.classList.add('cal-has-clips');
-          const dots = document.createElement('div');
-          dots.className = 'cal-dots';
-          dayClips.slice(0, 3).forEach((c) => {
+        if (dcs.length) {
+          const dots = document.createElement('div'); dots.className = 'cal-dots';
+          dcs.slice(0, 4).forEach(c => {
             const dot = document.createElement('span');
             dot.className = `cal-dot stage-dot-${c.stage || 'to-watch'}`;
             dots.appendChild(dot);
           });
-          if (dayClips.length > 3) {
-            const more = document.createElement('span');
-            more.className = 'cal-more';
-            more.textContent = `+${dayClips.length - 3}`;
-            dots.appendChild(more);
-          }
+          if (dcs.length > 4) { const m2 = document.createElement('span'); m2.className = 'cal-more'; m2.textContent = `+${dcs.length - 4}`; dots.appendChild(m2); }
           cell.appendChild(dots);
-
-          cell.addEventListener('click', () => showDetail(dateStr, dayClips));
+          cell.addEventListener('click', () => showDetail(ds, dcs));
         }
-
         calGrid.appendChild(cell);
       }
     }
 
-    function showDetail(dateStr: string, dayClips: typeof clips) {
-      const detail    = document.getElementById('cal-detail')!;
-      const dateLabel = document.getElementById('cal-detail-date')!;
-      const list      = document.getElementById('cal-detail-list')!;
-
-      const d = new Date(dateStr + 'T12:00:00');
-      dateLabel.textContent = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-      list.innerHTML = dayClips.map((c) => `
+    function showDetail(ds: string, dcs: ClipData[]) {
+      const detail = document.getElementById('cal-detail')!;
+      const label  = document.getElementById('cal-detail-date')!;
+      const list   = document.getElementById('cal-detail-list')!;
+      const d = new Date(ds + 'T12:00:00');
+      label.textContent = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+      list.innerHTML = dcs.map(c => `
         <li class="pipeline-card">
           ${c.thumbnail ? `<img class="pipeline-thumb" src="${c.thumbnail}" alt="" />` : ''}
           <a href="${c.url}" target="_blank" rel="noopener noreferrer" class="pipeline-title">${c.title}</a>
           <span class="pipeline-host">${c.channel || c.url}</span>
-        </li>
-      `).join('');
+        </li>`).join('');
       detail.style.display = 'block';
       detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    document.getElementById('cal-prev')!.addEventListener('click', () => {
-      current.setMonth(current.getMonth() - 1);
-      renderCalendar();
-      document.getElementById('cal-detail')!.style.display = 'none';
-    });
-    document.getElementById('cal-next')!.addEventListener('click', () => {
-      current.setMonth(current.getMonth() + 1);
-      renderCalendar();
-      document.getElementById('cal-detail')!.style.display = 'none';
-    });
-
-    renderCalendar();
+    document.getElementById('cal-prev')!.addEventListener('click', () => { current.setMonth(current.getMonth() - 1); render(); document.getElementById('cal-detail')!.style.display = 'none'; });
+    document.getElementById('cal-next')!.addEventListener('click', () => { current.setMonth(current.getMonth() + 1); render(); document.getElementById('cal-detail')!.style.display = 'none'; });
+    render();
   }
 </script>
 
 <style>
-  .page-header { margin-bottom: 1em; }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75em; flex-wrap: wrap; gap: 0.5em; }
   h1 { margin-bottom: 0.1em; }
   .subtitle { color: rgb(var(--gray)); margin: 0; font-size: 0.9em; }
+  .dash-link { font-size: 0.85em; color: var(--accent); text-decoration: none; padding: 0.35em 0.8em; border: 1px solid var(--accent); border-radius: 4px; white-space: nowrap; }
+  .dash-link:hover { background: var(--accent); color: white; }
 
-  .controls { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75em; margin-bottom: 1.75em; }
+  /* Search */
+  .search-row { display: flex; align-items: center; gap: 0.75em; margin-bottom: 1em; }
+  .search-input { flex: 1; max-width: 480px; padding: 0.5em 0.85em; border: 1px solid rgb(var(--gray-light)); border-radius: 6px; font-size: 0.95em; font-family: inherit; transition: border-color 0.15s; }
+  .search-input:focus { outline: none; border-color: var(--accent); }
+  .search-count { font-size: 0.82em; color: rgb(var(--gray)); }
 
-  .tags-filter { display: flex; flex-wrap: wrap; gap: 0.4em; }
-  .tag-btn {
-    padding: 0.2em 0.75em; border-radius: 999px; font-size: 0.78em;
-    text-decoration: none; background: rgb(var(--gray-light));
-    color: rgb(var(--gray-dark)); border: 2px solid transparent; transition: 0.15s;
-  }
+  /* Controls */
+  .controls { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75em; margin-bottom: 1.5em; }
+  .filters-left { display: flex; flex-direction: column; gap: 0.5em; flex: 1; min-width: 0; }
+  .filter-group { display: flex; align-items: center; gap: 0.5em; flex-wrap: wrap; }
+  .filter-label { font-size: 0.78em; font-weight: 700; color: rgb(var(--gray-dark)); white-space: nowrap; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 0.35em; }
+  .tag-btn { padding: 0.18em 0.7em; border-radius: 999px; font-size: 0.76em; text-decoration: none; background: rgb(var(--gray-light)); color: rgb(var(--gray-dark)); border: 2px solid transparent; transition: 0.15s; }
   .tag-btn.active, .tag-btn:hover { border-color: var(--accent); color: var(--accent); background: white; }
-
-  .view-tabs { display: flex; gap: 0; border: 1px solid rgb(var(--gray-light)); border-radius: 6px; overflow: hidden; }
-  .view-tab {
-    padding: 0.35em 1em; font-size: 0.82em; text-decoration: none;
-    color: rgb(var(--gray-dark)); background: white; transition: background 0.15s;
-  }
+  .view-tabs { display: flex; border: 1px solid rgb(var(--gray-light)); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  .view-tab { padding: 0.35em 1em; font-size: 0.82em; text-decoration: none; color: rgb(var(--gray-dark)); background: white; transition: background 0.15s; }
   .view-tab + .view-tab { border-left: 1px solid rgb(var(--gray-light)); }
   .view-tab.active, .view-tab:hover { background: var(--accent); color: white; }
 
-  /* List view */
-  .clips-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1em; }
-  .clip-card {
-    display: flex; gap: 1em;
-    border: 1px solid rgb(var(--gray-light)); border-radius: 8px;
-    background: white; box-shadow: var(--box-shadow); overflow: hidden;
-    transition: border-color 0.15s;
-  }
+  /* List */
+  .clips-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.9em; }
+  .clip-card { display: flex; gap: 0.9em; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; background: white; box-shadow: var(--box-shadow); overflow: hidden; transition: border-color 0.15s; }
   .clip-card:hover { border-color: rgb(var(--gray)); }
-  .thumb-link { flex-shrink: 0; }
-  .card-thumb { width: 160px; height: 100%; object-fit: cover; display: block; }
-  .card-body { padding: 1em; flex: 1; min-width: 0; }
-  .card-meta { display: flex; align-items: center; gap: 0.6em; flex-wrap: wrap; margin-bottom: 0.4em; }
-  time { font-size: 0.78em; color: rgb(var(--gray)); }
+  .thumb-link { flex-shrink: 0; position: relative; }
+  .card-thumb { width: 180px; height: 100%; object-fit: cover; display: block; }
+  .duration-overlay { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.75); color: white; font-size: 0.7em; padding: 0.1em 0.4em; border-radius: 3px; }
+  .card-body { padding: 0.85em; flex: 1; min-width: 0; }
+  .card-meta { display: flex; align-items: center; gap: 0.5em; flex-wrap: wrap; margin-bottom: 0.35em; }
+  time { font-size: 0.76em; color: rgb(var(--gray)); }
   .clip-tags { display: flex; gap: 0.3em; flex-wrap: wrap; }
-  .tag {
-    font-size: 0.72em; padding: 0.12em 0.55em; border-radius: 999px;
-    background: rgb(var(--gray-light)); color: rgb(var(--gray-dark));
-    text-decoration: none; transition: background 0.15s;
-  }
+  .tag { font-size: 0.7em; padding: 0.1em 0.5em; border-radius: 999px; background: rgb(var(--gray-light)); color: rgb(var(--gray-dark)); text-decoration: none; transition: background 0.15s; }
   .tag:hover { background: var(--accent); color: white; }
-  .clip-title { display: block; font-weight: 700; font-size: 1em; color: rgb(var(--black)); text-decoration: none; margin-bottom: 0.3em; line-height: 1.35; }
+  .clip-title { display: block; font-weight: 700; font-size: 1em; color: rgb(var(--black)); text-decoration: none; margin-bottom: 0.3em; line-height: 1.3; }
   .clip-title:hover { color: var(--accent); }
-  .clip-description { font-size: 0.88em; color: rgb(var(--gray-dark)); margin: 0 0 0.4em; line-height: 1.5; }
-  .clip-url { font-size: 0.76em; color: rgb(var(--gray)); text-decoration: none; }
+  .clip-description { font-size: 0.86em; color: rgb(var(--gray-dark)); margin: 0 0 0.4em; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clip-url { font-size: 0.74em; color: rgb(var(--gray)); text-decoration: none; }
   .clip-url:hover { color: var(--accent); }
-
-  /* Stage badges */
-  .stage-badge { font-size: 0.72em; padding: 0.12em 0.55em; border-radius: 999px; }
+  .stars-display { font-size: 0.75em; color: #f9ab00; letter-spacing: 1px; }
+  .col-badge { background: #e8f0fe; color: #1a73e8; border-radius: 4px; padding: 0.05em 0.4em; font-size: 0.72em; }
+  .stage-badge { font-size: 0.7em; padding: 0.1em 0.5em; border-radius: 999px; }
   .stage-watching { background: #fce8b2; color: #b06000; }
   .stage-watched  { background: #d4edda; color: #1e6e34; }
 
+  /* Moments preview */
+  .moments-preview { list-style: none; padding: 0; margin: 0.3em 0 0.4em; display: flex; flex-direction: column; gap: 0.2em; }
+  .moment-item { display: flex; gap: 0.4em; align-items: baseline; font-size: 0.8em; }
+  .moment-time-badge { background: var(--accent); color: white; border-radius: 3px; padding: 0.05em 0.35em; font-size: 0.85em; white-space: nowrap; flex-shrink: 0; }
+  .moment-note { color: rgb(var(--gray-dark)); }
+  .moment-more { font-size: 0.75em; color: rgb(var(--gray)); font-style: italic; }
+
   /* Pipeline */
   .pipeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; align-items: start; }
-  .pipeline-col { background: rgb(var(--gray-light), 0.4); border-radius: 8px; padding: 1em; }
-  .col-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75em; margin-bottom: 0.75em; font-weight: 700; font-size: 0.9em; }
+  .pipeline-col { background: rgba(var(--gray-light), 0.35); border-radius: 8px; padding: 1em; }
+  .col-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75em; margin-bottom: 0.75em; font-weight: 700; font-size: 0.88em; }
   .col-count { background: white; border-radius: 999px; padding: 0.1em 0.5em; font-size: 0.8em; font-weight: 400; color: rgb(var(--gray)); }
   .col-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6em; }
   .col-empty { font-size: 0.85em; color: rgb(var(--gray)); font-style: italic; }
-  .pipeline-card { background: white; border-radius: 6px; padding: 0.75em; border: 1px solid rgb(var(--gray-light)); }
-  .pipeline-thumb { width: 100%; border-radius: 4px; display: block; margin-bottom: 0.5em; aspect-ratio: 16/9; object-fit: cover; }
-  .pipeline-title { display: block; font-size: 0.88em; font-weight: 700; color: rgb(var(--black)); text-decoration: none; line-height: 1.3; margin-bottom: 0.2em; }
+  .pipeline-card { background: white; border-radius: 6px; padding: 0.7em; border: 1px solid rgb(var(--gray-light)); }
+  .pipeline-thumb { width: 100%; border-radius: 4px; display: block; margin-bottom: 0.45em; aspect-ratio: 16/9; object-fit: cover; }
+  .pipeline-title { display: block; font-size: 0.86em; font-weight: 700; color: rgb(var(--black)); text-decoration: none; line-height: 1.3; margin-bottom: 0.25em; }
   .pipeline-title:hover { color: var(--accent); }
-  .pipeline-host { font-size: 0.74em; color: rgb(var(--gray)); }
+  .pipeline-meta { display: flex; align-items: center; gap: 0.4em; flex-wrap: wrap; }
+  .pipeline-host { font-size: 0.72em; color: rgb(var(--gray)); }
+  .duration-badge { background: rgb(var(--gray-light)); border-radius: 3px; padding: 0.05em 0.3em; font-size: 0.7em; }
+  .stars-sm { font-size: 0.7em; color: #f9ab00; }
 
   /* Calendar */
   .calendar-wrap { user-select: none; }
   .cal-nav { display: flex; align-items: center; gap: 1em; margin-bottom: 1em; font-weight: 700; }
-  .cal-nav button {
-    background: white; border: 1px solid rgb(var(--gray-light));
-    border-radius: 4px; padding: 0.25em 0.75em; cursor: pointer; font-size: 1em;
-    transition: background 0.15s;
-  }
+  .cal-nav button { background: white; border: 1px solid rgb(var(--gray-light)); border-radius: 4px; padding: 0.25em 0.75em; cursor: pointer; font-size: 1em; }
   .cal-nav button:hover { background: var(--accent); color: white; border-color: var(--accent); }
   #cal-label { font-size: 1.1em; text-transform: capitalize; }
-  .cal-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr);
-    gap: 2px; background: rgb(var(--gray-light)); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; overflow: hidden;
-  }
-  .cal-weekday { background: white; text-align: center; font-size: 0.75em; font-weight: 700; padding: 0.5em 0; color: rgb(var(--gray)); }
-  .cal-cell {
-    background: white; min-height: 72px; padding: 0.4em; position: relative;
-    display: flex; flex-direction: column; gap: 0.25em;
-  }
-  .cal-blank { background: rgb(var(--gray-light), 0.3); }
-  .cal-today .cal-day { background: var(--accent); color: white; border-radius: 50%; width: 1.5em; height: 1.5em; display: flex; align-items: center; justify-content: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: rgb(var(--gray-light)); border: 1px solid rgb(var(--gray-light)); border-radius: 8px; overflow: hidden; }
+  .cal-weekday { background: white; text-align: center; font-size: 0.72em; font-weight: 700; padding: 0.5em 0; color: rgb(var(--gray)); }
+  .cal-cell { background: white; min-height: 72px; padding: 0.4em; display: flex; flex-direction: column; gap: 0.2em; }
+  .cal-blank { background: rgba(var(--gray-light), 0.3); }
+  .cal-today .cal-day { background: var(--accent); color: white; border-radius: 50%; width: 1.4em; height: 1.4em; display: flex; align-items: center; justify-content: center; }
   .cal-has-clips { cursor: pointer; }
   .cal-has-clips:hover { background: #f0f4ff; }
-  .cal-day { font-size: 0.8em; font-weight: 700; color: rgb(var(--gray-dark)); align-self: flex-start; }
+  .cal-day { font-size: 0.78em; font-weight: 700; color: rgb(var(--gray-dark)); }
   .cal-dots { display: flex; flex-wrap: wrap; gap: 3px; }
-  .cal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
   .cal-dot.stage-dot-to-watch { background: #1a73e8; }
   .cal-dot.stage-dot-watching  { background: #f9ab00; }
   .cal-dot.stage-dot-watched   { background: #34a853; }
-  .cal-more { font-size: 0.65em; color: rgb(var(--gray)); }
-  .cal-detail { margin-top: 1.5em; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1.25em; background: white; }
+  .cal-more { font-size: 0.62em; color: rgb(var(--gray)); }
+  .cal-detail { margin-top: 1.25em; border: 1px solid rgb(var(--gray-light)); border-radius: 8px; padding: 1.1em; background: white; }
   .cal-detail h3 { margin: 0 0 0.75em; font-size: 1em; text-transform: capitalize; }
 
   .empty { color: rgb(var(--gray)); font-style: italic; }
 
   @media (max-width: 600px) {
     .pipeline { grid-template-columns: 1fr; }
-    .card-thumb { width: 100px; }
+    .card-thumb { width: 110px; }
     .controls { flex-direction: column; }
-    .cal-cell { min-height: 50px; }
   }
 </style>
